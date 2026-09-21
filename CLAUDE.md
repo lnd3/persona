@@ -41,3 +41,30 @@ Nostr relays and self-run infrastructure both remain open options
   attack surface (coercing or colluding against a threshold of
   someone's guardians) — state this honestly wherever the mechanism
   is described, don't market around it.
+
+## Handoff note (2026-09-21) — read this first if you're new here
+
+Design (P001/D001) is complete but **the whole build is blocked** on
+`cinder`'s P004/L402 (not yet built — see `cinder`'s own D005 for the
+write-path spec once implemented). Both this project's sybil-
+resistance payments and its sign-in billing need L402 to exist
+somewhere real to call — there isn't yet a smaller independent slice
+to start on the way there was for `EphemNet`'s DNS server. Check
+`cinder`'s P004 status before starting anything here.
+
+**Real open design questions, not yet resolved, worth tackling once
+unblocked (see D001's Open Questions for full detail):**
+- Where this actually runs — own relays, the public Nostr network, or
+  `EphemNet`-routed self-hosted relays (now concretely possible, not
+  yet chosen)
+- Nostr interop scope — full compatibility vs. a deliberately separate
+  fork
+- Bonding/slashing mechanics for disputed attestations — flagged as
+  genuinely hard mechanism design, not just unwritten
+- `claim_type` namespace governance — Nostr has NIPs; this doesn't
+  have an equivalent yet
+- The GDPR/right-to-erasure tension with an append-only public
+  attestation history — untouched so far, worth resolving before any
+  real personal data flows through this
+
+See `superplan`'s M002 for the wider four-repo picture.

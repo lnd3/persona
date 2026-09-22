@@ -10,7 +10,11 @@ updated: 2026-09-21
 depends: []
 external_dependencies:
   - cinder P004 / L402 (Lightning payment rail) — required for
-    sybil-resistance payments and sign-in billing; not yet built
+    sybil-resistance payments and sign-in billing; cinder's own side
+    (D005, Aperture-fronted) is built and verified live, but cinder's
+    paid tier is not fully deployed end-to-end (Aperture deployment,
+    real Lightning provider account still outstanding on cinder's
+    side, deferred there) — see P001's 2026-09-21 log entry
 enables: []
 ---
 
@@ -68,3 +72,18 @@ in [[D001]].
 previously didn't exist at all; the design lived only in `superplan`.
 Named "persona" (Loom considered and rejected due to an existing,
 unrelated cryptocurrency by that name).
+
+2026-09-21 — Checked `cinder`'s P004/L402 status: moved to DEFERRED
+the same day, but not stalled — cinder's own side of the L402 write
+path (internal paid listener, shared-secret middleware, 30-day TTL
+ceiling, 9 tests) is built and verified live, and D005 was revised to
+front payment through `lightninglabs/aperture` (a production L402
+reverse proxy) rather than cinder implementing macaroons/invoicing
+itself. Deferred per the user's explicit call: the goal was always "a
+concrete pattern to follow" for `EphemNet` and this project, not
+cinder's own paid tier fully live — that bar is now met. Still
+outstanding on cinder's side, separately: Aperture deployment/config
+and a real hosted Lightning provider account, needed only for cinder's
+*own* paid tier to go fully live end-to-end. This project is no longer
+blocked on that remaining piece — D005 gives a real, live-verified
+reference architecture to design against now.

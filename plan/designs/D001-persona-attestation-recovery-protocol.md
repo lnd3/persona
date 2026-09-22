@@ -240,3 +240,15 @@ explicitly sequenced after P004 for exactly this reason.
 2026-09-21 — Design seeded from `superplan` (repo: superplan, D003),
 carrying forward its full content unchanged at time of seeding. Future
 revisions belong here, not in superplan's copy.
+
+2026-09-21 — Checked `cinder`'s P004/D005 status: cinder's own side of
+the L402 write path is built and verified live (internal paid
+listener, shared-secret middleware, 30-day TTL ceiling), fronted by
+`lightninglabs/aperture` rather than cinder rolling its own macaroon/
+invoicing code. P004 itself moved to DEFERRED, but only its remaining
+piece (Aperture deployment/config, a real hosted Lightning provider
+account) — the part needed for cinder's *own* paid tier to go fully
+live end-to-end, not the part this design needs. This design now has
+a real, live-verified reference architecture (D005) to follow for its
+own sybil-resistance/sign-in payment integration, rather than an
+abstract "L402 will exist eventually" dependency.

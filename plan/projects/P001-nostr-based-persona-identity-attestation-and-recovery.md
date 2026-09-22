@@ -18,6 +18,16 @@ external_dependencies:
 enables: []
 ---
 
+## Naming
+
+Domain chosen: `sovranpersona.com` (2026-09-22) — keeps "persona" (the
+repo/thesis name throughout this plan) while adding a sovereignty/
+freedom connotation via "sovran" (archaic spelling of "sovereign,"
+chosen over the plain word to avoid colliding with **Sovrin**, an
+existing self-sovereign-identity project). Repo/project name stays
+"persona"; this is the product-facing domain/brand name, not a repo
+rename.
+
 ## Goal
 
 Build [[T001]]: a persistent, keypair-anchored persona identity on
@@ -38,6 +48,13 @@ in [[D001]].
   web UI with API reference, documentation, and status sections —
   matching `cinder`'s own pattern (its API reference page). Applies
   once there's an actual service to build it for.
+- In scope, standing requirement: a client application holding the
+  user's keys across their different personas (one person, multiple
+  context-specific personas per the naming discussion), plus the
+  product site around it — landing page, a presentation, and a
+  download page for that application. Site should carry origin/author
+  and contact info. Not yet designed — recorded as a known
+  requirement, not a spec.
 - Not in scope yet: implementation. Design-stage project, matching
   where `cinder` was between its founding thesis and its own first
   design docs.
@@ -111,3 +128,13 @@ remaining hard dependency on `cinder`.
 2026-09-22 — Added a standing scope requirement: any network service
 this project creates gets a web UI with API reference, documentation,
 and status sections.
+
+2026-09-22 — Chose `sovranpersona.com` as the product domain/brand
+name, after a naming brainstorm (candidates considered included
+Mantle, Covenant, Shard, Freehold, Agora — see chat log for full
+reasoning). Repo/project name unchanged ("persona").
+
+2026-09-22 — Recorded a known-but-undesigned requirement: a client
+application holding the user's keys across their personas, plus a
+product site (landing page, presentation, download page, origin/
+author/contact info). Not yet designed.

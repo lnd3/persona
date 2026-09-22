@@ -33,6 +33,11 @@ in [[D001]].
   and its trust/sybil-resistance model, and the recovery mechanism
   (SSKR-based social recovery, authorized via the same attestation
   primitive).
+- In scope, standing requirement: any network service this project
+  stands up (e.g. an attestation-cost gateway backend, a relay) gets a
+  web UI with API reference, documentation, and status sections —
+  matching `cinder`'s own pattern (its API reference page). Applies
+  once there's an actual service to build it for.
 - Not in scope yet: implementation. Design-stage project, matching
   where `cinder` was between its founding thesis and its own first
   design docs.
@@ -102,3 +107,7 @@ operators it trusts — reusing D005's mechanism while keeping the
 relative-trust model intact. Sign-in billing mapped onto the same
 shape. This closes the design gap that was this project's main
 remaining hard dependency on `cinder`.
+
+2026-09-22 — Added a standing scope requirement: any network service
+this project creates gets a web UI with API reference, documentation,
+and status sections.

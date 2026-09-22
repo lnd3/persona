@@ -163,9 +163,55 @@ marketed as though it does.
 
 **Payment dependency**: this design does not implement its own
 payment rail. Both the sybil-resistance mechanism above and sign-in
-billing depend on `cinder`'s P004/L402 infrastructure, which doesn't
-exist yet — per `superplan`'s M002 build order, this project is
-explicitly sequenced after P004 for exactly this reason.
+billing depend on `cinder`'s P004/L402 infrastructure. As of
+2026-09-22, that infrastructure has a real, live-verified reference
+architecture to follow (`cinder`'s D005) rather than being purely
+notional — see the Payment Integration section below for how this
+design actually plugs into it.
+
+**Payment integration (added 2026-09-22, following `cinder`'s D005
+pattern)**: `cinder`'s own L402 write path settled on fronting a
+minimal backend with `lightninglabs/aperture` — a production L402
+reverse proxy — rather than any service implementing macaroon minting,
+invoicing, or preimage verification itself. This design reuses that
+same pattern rather than inventing a second one, but the gating point
+differs from `cinder`'s because persona has no single central write
+server to sit Aperture in front of — attestation events can be
+published to any relay.
+
+- **The gate is a per-operator "attestation-cost gateway," not a
+  relay.** Any operator — including a reference deployment this
+  project itself could run — fronts a minimal backend service with
+  Aperture, exactly like `cinder`'s internal paid listener, whose only
+  job is: accept an already-L402-paid request, and mint a small signed
+  receipt (timestamp + nonce, no macaroon/Lightning code of its own).
+  The attester embeds that receipt in the attestation event's tags
+  when publishing. No payment-verification code lives in persona's own
+  client or relay software, same as `cinder` carries none — Aperture
+  and the Lightning payment it gates own that entirely.
+- **Consistent with the relative-trust model, not a canonical gate.**
+  A verifier's weighting logic decides *which gateway operators'*
+  receipts it trusts as evidence of real economic cost — there is no
+  single blessed gateway anyone could capture by running it, the same
+  way there's no single blessed reputation score. A verifier that
+  trusts no gateway operator can still fall back to the bonded-stake
+  alternative already described above, which needs no gateway at all.
+- **Sign-in billing follows the identical shape**: a relying site that
+  wants to charge for NIP-98 sign-in fronts its own login-verification
+  endpoint with its own Aperture instance, registering one discrete
+  pricing tier — the same "add one internal listener, no payment code
+  of your own" shape as `cinder`'s paid-write listener, not a distinct
+  mechanism.
+- **Shared-gateway reuse, same as `cinder`/`EphemNet`**: one Aperture
+  instance can front multiple backend services at once — nothing here
+  requires a persona-specific gateway deployment; an operator already
+  running Aperture for another purpose can register an
+  attestation-receipt service alongside it.
+- **Still open, not yet decided**: whether this project runs one
+  reference gateway of its own (the way `cinder` runs its own paid
+  listener) versus leaving every relying party to stand up its own —
+  a positioning question, not an architectural blocker, and separate
+  from the "where does persona run" open question below.
 
 ## Key Decisions
 
@@ -189,6 +235,13 @@ explicitly sequenced after P004 for exactly this reason.
 - **Multi-device threshold signing deferred past v1**: a real
   hardening layer, but not required for a working recovery story, and
   a materially bigger lift than SSKR-plus-delegation.
+- **Payment integration reuses `cinder`'s Aperture-fronted L402
+  pattern via per-operator "attestation-cost gateways," not a
+  persona-specific payment implementation**: no macaroon/Lightning
+  code in persona's own client or relay software, consistent with
+  `cinder` carrying none either; which gateway operators' receipts
+  count is a per-verifier trust decision, keeping this consistent with
+  the relative-trust model rather than introducing a canonical gate.
 
 ## Open Questions / Unknowns
 
@@ -230,7 +283,9 @@ explicitly sequenced after P004 for exactly this reason.
 - **Reference**: `superplan`'s own P003 (SSKR/Shamir's Secret Sharing
   precedent), `cinder`'s D003 (the `tlock`/mandatory-crypto-guarantee
   precedent this design's sybil-resistance mechanism follows the same
-  spirit of — make the guarantee inherent, not optional)
+  spirit of — make the guarantee inherent, not optional), `cinder`'s
+  D005 (the Aperture-fronted L402 write-path pattern this design's
+  payment integration follows)
 - **Origin**: seeded from `superplan`'s `plan/designs/D003-persona-
   identity-attestation-recovery.md`, where this spec was originally
   worked out
@@ -252,3 +307,17 @@ live end-to-end, not the part this design needs. This design now has
 a real, live-verified reference architecture (D005) to follow for its
 own sybil-resistance/sign-in payment integration, rather than an
 abstract "L402 will exist eventually" dependency.
+
+2026-09-22 — Wrote the actual payment-integration design (new
+Architecture subsection above), following `cinder`'s D005 pattern
+rather than inventing a separate one. Key departure from `cinder`'s
+own shape, worked through explicitly rather than copied blindly:
+`cinder` gates a single central write server, but persona has no
+single central point events flow through, so the gate is reframed as
+a per-operator "attestation-cost gateway" issuing a signed receipt
+embedded in the attestation event, with each verifier deciding which
+gateway operators' receipts it trusts — kept consistent with the
+existing relative-trust model instead of accidentally introducing a
+canonical gate. Sign-in billing mapped onto the identical shape. Left
+open: whether this project runs its own reference gateway or leaves
+that entirely to relying parties.

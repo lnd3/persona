@@ -63,8 +63,14 @@ in [[D001]].
       thesis and project (this action)
 - [ ] Resolve remaining open questions: where this runs, Nostr interop
       scope, bonding/slashing dispute mechanics
-- [ ] Wait on `cinder`'s P004/L402 before real sybil-resistance
-      payments or sign-in billing can be built
+- [x] Design payment integration against `cinder`'s D005 pattern
+      (Aperture-fronted attestation-cost gateways) — done 2026-09-22,
+      see D001
+- [ ] Wait on `cinder` actually deploying its own paid tier live
+      (Aperture config, a real Lightning provider account) only if/when
+      this project wants to stand up its own reference gateway;
+      otherwise no longer a hard blocker to this project's own design
+      or implementation work
 
 ## Log
 
@@ -87,3 +93,12 @@ and a real hosted Lightning provider account, needed only for cinder's
 *own* paid tier to go fully live end-to-end. This project is no longer
 blocked on that remaining piece — D005 gives a real, live-verified
 reference architecture to design against now.
+
+2026-09-22 — Payment integration designed in D001 against that
+reference: per-operator "attestation-cost gateway" (Aperture-fronted,
+same as `cinder`'s paid listener) issuing signed receipts embedded in
+attestation events, with each verifier deciding which gateway
+operators it trusts — reusing D005's mechanism while keeping the
+relative-trust model intact. Sign-in billing mapped onto the same
+shape. This closes the design gap that was this project's main
+remaining hard dependency on `cinder`.

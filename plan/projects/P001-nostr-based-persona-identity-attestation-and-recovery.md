@@ -28,6 +28,34 @@ existing self-sovereign-identity project). Repo/project name stays
 "persona"; this is the product-facing domain/brand name, not a repo
 rename.
 
+Hosting already available (2026-09-27), separate from the above:
+`persona.cinderapps.org` (live) and `dev4637.persona.cinderapps.org`
+(dev) — subdomains of `cinder`'s existing `cinderapps.org` multi-
+product deployment (see `cinder`'s `deploy/README.md`; `cinderapps`
+is `cinder`'s own landing-site product, and its Caddy sidecar derives
+product subdomains from `CINDERAPPS_BASE_DOMAIN` alone). `cinder`'s
+`deploy/` scripts (`deploy.sh`, `configure-nginx.sh`, `ops.sh`,
+`environments.sh`, per-product `Caddyfile`/`Dockerfile` under
+`deploy/<product>/`) are the pattern to copy into this repo once
+there's something real to publish here — not before.
+
+**Incident to carry forward when that copy happens** (`cinder` commit
+8689652, 2026-09-27): `configure-nginx.sh`'s nginx fragment filenames
+(`/etc/nginx/stream-backends.d/<tag>.map`,
+`sites-enabled/<tag>-http01.conf`) were bare `<environment>`
+("live"/"dev") — fine for the Compose project name and the
+`<deploy-root>/<environment>` directory, both already isolated by
+their own structure, but those two nginx directories are **shared
+across every repo running its own equivalent of this script on the
+same server** (`cinder`, `EphemNet`, this repo). Bare "live"/"dev"
+would let one repo's script silently overwrite another's nginx
+routing. Fixed in `cinder` by prefixing with its own repo name
+(`cinder-live`, `cinder-dev`). When this repo copies `cinder`'s
+`deploy/` scripts, its own `ENV_TAG` must be prefixed the same way
+(`persona-live`, `persona-dev`), not left bare — copy the fixed
+version of `configure-nginx.sh`/`environments.sh`, not a pre-8689652
+one.
+
 ## Goal
 
 Build [[T001]]: a persistent, keypair-anchored persona identity on
@@ -84,10 +112,15 @@ in [[D001]].
 - [x] Consolidate the design-formation conversation into a real
       thesis and project (this action)
 - [ ] Resolve remaining open questions: where this runs, Nostr interop
-      scope, bonding/slashing dispute mechanics
+      scope
 - [x] Design payment integration against `cinder`'s D005 pattern
       (Aperture-fronted attestation-cost gateways) — done 2026-09-22,
       see D001
+- [x] Resolve bonding/slashing dispute mechanics — done 2026-09-27,
+      scoped to one dispute type only (behavioral/quality disputes
+      between two identified parties); sybil-ring vouching, ownership/
+      provenance, and recovery disputes explicitly need separate,
+      still-undesigned mechanisms — see D001
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -138,3 +171,28 @@ reasoning). Repo/project name unchanged ("persona").
 application holding the user's keys across their personas, plus a
 product site (landing page, presentation, download page, origin/
 author/contact info). Not yet designed.
+
+2026-09-27 — Recorded existing hosting access: `persona.cinderapps.org`
+(live) and `dev4637.persona.cinderapps.org` (dev), subdomains of
+`cinder`'s own multi-product `cinderapps.org` deployment. Decided to
+copy `cinder`'s `deploy/` scripts into this repo once there's
+something real to publish, rather than building a deployment setup
+from scratch.
+
+2026-09-27 — Checked `cinder`'s latest deploy/ changes: a critical fix
+(commit 8689652) product-qualified `configure-nginx.sh`'s shared
+nginx fragment filenames (previously bare "live"/"dev", collidable
+across every repo sharing that server's nginx directories). This
+repo has no `deploy/` of its own yet, so nothing to patch here today —
+recorded the requirement above so the eventual copy starts from the
+fixed version with this repo's own `persona-` prefix, not a
+pre-8689652 one.
+
+2026-09-27 — Resolved D001's bonding/slashing open question (see
+D001's own log for the full reasoning): split disputes into four
+types by what's actually being claimed, and found arbiter-adjudicated
+bonding/slashing is a good fit for exactly one of them (behavioral/
+quality disputes between two identified parties) and a poor-to-wrong
+fit for the other three (sybil-ring vouching, ownership/provenance,
+recovery disputes), which each need a different, still-undesigned
+mechanism instead of being forced through one.

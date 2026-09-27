@@ -121,6 +121,91 @@ T007). **Worth studying directly, not just citing**: BrightID's
 decentralized social-graph-based uniqueness verification is the
 closest existing project to what's wanted here philosophically.
 
+**Dispute types, and where bonding/slashing actually applies (added
+2026-09-27).** The bonded-stake alternative above named a mechanism
+without scoping it — "disputed and found false" covers wildly
+different situations depending on what `claim_type` is being disputed,
+and a single arbiter-adjudicated bond-slashing process is a good fit
+for only one of them. Four real dispute types, evaluated separately
+rather than assumed to be one problem:
+
+- **1. Behavioral/quality disputes between two identified parties**
+  ("this persona scammed me," "didn't deliver as claimed") — the
+  single most common dispute in practice, by direct analogy to every
+  existing reputation system (eBay, Airbnb, Yelp all handle exactly
+  this). Bounded, factual/quality disagreement between two known
+  parties. **Bonding/slashing with a per-dispute arbiter is the right
+  tool here, and this is the only dispute type v1's mechanism is
+  scoped to.** Kleros's own flagship real-world use case is this exact
+  pattern, not prediction-market-style objective-outcome disputes.
+- **2. Sybil-ring vouching** — the structural threat the bonded-stake
+  mechanism was originally motivated by (attackers minting personas to
+  vouch for each other), but a poor fit for per-claim arbitration:
+  "was *this one* attestation between A and B genuine" is nearly
+  unanswerable in isolation. Sybil rings are a **graph-level pattern**
+  (clusters of freshly-minted keys vouching for each other, no
+  independent history) — closer to fraud/pattern detection than
+  fact-checking a single claim. **Not suitable for arbiter-adjudicated
+  bonding/slashing at all.** Belongs to heuristic/graph analysis that
+  flags suspicious clusters for verifiers to independently discount —
+  a separate mechanism, not designed here yet.
+- **3. Ownership/provenance claims** ("this persona operates domain
+  X") — usually independently, objectively checkable (a DNS record, an
+  HTTP challenge, cryptographic proof-of-control), not a social
+  judgment call. **Not suitable for bonding/slashing** — a bond+arbiter
+  process would be strictly worse than direct verification for
+  anything actually checkable this way; reserve bonding for claims that
+  aren't independently verifiable.
+- **4. Recovery-guardian/recovery-confirm disputes** (a coerced or
+  colluding guardian wrongly confirming recovery) — categorically
+  different: the harm is losing the identity itself, not a financial
+  loss a slashed bond could make whole after the fact. **Not suitable
+  for post-hoc bonding/slashing at all** — this needs a challenge
+  window *before* recovery finalizes, not a bond to slash afterward.
+  Stays out of scope for the bonding/slashing mechanism entirely; see
+  the Recovery section below, which already carries its own honestly-
+  stated residual risk for exactly this scenario.
+
+**Bonding/slashing mechanism (v1, scoped to dispute type 1 only):**
+
+- **Escrow, not a payment.** This is the key structural point: L402/
+  Lightning (used for the payment path above) settles instantly — the
+  right shape for "pay once, get a receipt," the wrong shape for
+  "hold funds forfeitable pending a dispute window." A bonded stake
+  needs actual escrow, a different financial primitive sharing only
+  the same non-custodial spirit, not "L402 but bigger." V1 uses a
+  simple n-of-m multisig (no new cryptographic primitive — deferred:
+  DLC/oracle-based escrow, same "defer the bigger lift" spirit as
+  deferring FROST for recovery).
+- **Arbiter choice is per-dispute, not protocol-wide.** Whoever relies
+  on a bond (the subject, or a verifier) picks which arbiter(s) they
+  trust to adjudicate that specific dispute — consistent with this
+  design's own relative-trust model, not a single blessed court. A
+  global crowdsourced court (Kleros's own actual model) was considered
+  and rejected for exactly this reason: it produces one canonical
+  true/false verdict everyone inherits, which is itself the kind of
+  single-point-of-capture authority this design's relative-trust
+  principle exists to avoid.
+- **Arbiter panel scales with stake size.** A single mutually-agreed
+  arbiter is enough for small bonds — the dispute is itself a tiny
+  loss either way. For larger bonds, a panel selected jointly by the
+  attester and the challenger (rather than either side unilaterally
+  picking someone favorable) is the v1 answer for higher-stakes
+  disputes.
+- **Self-releasing by default.** An unchallenged bond returns to the
+  attester automatically after a fixed window — no arbiter action for
+  the common, non-disputed case, only for actual disputes.
+- **Symmetric skin-in-the-game against frivolous disputes.** A
+  challenger must also stake; if the challenge fails, the
+  *challenger's* stake is what gets slashed, not just the attester's —
+  guards against dispute-spam/griefing, the same logic Augur's own
+  reporting-bond design uses.
+- **Residual risk, stated honestly rather than glossed over**: arbiter
+  collusion or capture over time is real, the same honesty this design
+  already applies to guardian collusion in the Recovery section below.
+  Mitigated, not eliminated, by keeping arbiter choice relative and
+  per-dispute rather than protocol-wide.
+
 **Recovery: the options actually considered, and why this combination
 was chosen.** Key loss/theft is the hardest unresolved risk this whole
 identity model carries. Four real options exist, evaluated against
@@ -242,6 +327,22 @@ published to any relay.
   `cinder` carrying none either; which gateway operators' receipts
   count is a per-verifier trust decision, keeping this consistent with
   the relative-trust model rather than introducing a canonical gate.
+- **Bonding/slashing is scoped to one dispute type only — behavioral/
+  quality disputes between two identified parties**: sybil-ring
+  vouching, ownership/provenance claims, and recovery disputes each
+  need a different mechanism (graph heuristics, direct cryptographic
+  verification, and a pre-finalization challenge window, respectively)
+  and are explicitly out of scope for arbiter-adjudicated bonding.
+- **Arbiter choice is per-dispute, not a global court**: rejects
+  Kleros's own crowdsourced-court model specifically because it would
+  produce one canonical verdict every verifier inherits, in tension
+  with this design's relative-trust principle; a single arbiter for
+  small bonds, a panel jointly selected by both parties for larger
+  ones.
+- **Bonding uses escrow (an n-of-m multisig, v1), not a Lightning
+  payment**: L402 settles instantly and isn't the right primitive for
+  funds that must stay forfeitable pending a dispute window; DLC/
+  oracle-based escrow deferred past v1, same spirit as deferring FROST.
 
 ## Open Questions / Unknowns
 
@@ -258,12 +359,19 @@ published to any relay.
   or a deliberately separate, incompatible fork that doesn't inherit
   Nostr's existing baggage but also doesn't get its existing network
   effect? Not decided.
-- **Bonding/slashing mechanics for disputed attestations**: named as a
-  mechanism in Architecture above, but the actual dispute-resolution
-  process (who adjudicates, how slashed stakes are handled, what
-  prevents the adjudication step itself from being gamed) is genuinely
-  hard mechanism design and needs its own dedicated pass — not
-  resolved here.
+- **Bonding/slashing mechanics — resolved 2026-09-27 for one dispute
+  type, deliberately not the other three.** See the new "Dispute
+  types" Architecture subsection above: scoped to behavioral/quality
+  disputes between two identified parties only (escrow via n-of-m
+  multisig, per-dispute arbiter choice, panel-for-larger-stakes,
+  symmetric challenger staking). Sybil-ring vouching, ownership/
+  provenance claims, and recovery disputes are explicitly named as
+  needing separate, still-undesigned mechanisms — not folded into this
+  one. Still genuinely open within the scoped mechanism itself: exact
+  bond-size thresholds for single-arbiter vs. panel, and how an
+  arbiter panel is actually selected jointly (a fair joint-selection
+  protocol isn't specified yet, just the requirement that it be
+  joint).
 - **`claim_type` governance**: who governs the namespace as it grows —
   Nostr has NIPs as a real (if informal) governance process for
   exactly this; this design doesn't have an equivalent yet.
@@ -321,3 +429,23 @@ existing relative-trust model instead of accidentally introducing a
 canonical gate. Sign-in billing mapped onto the identical shape. Left
 open: whether this project runs its own reference gateway or leaves
 that entirely to relying parties.
+
+2026-09-27 — Resolved the bonding/slashing open question, but only
+for one dispute type, deliberately. Started from "what kind of
+disputes would actually be most common" rather than designing the
+mechanism first: split disputes into four types (behavioral/quality
+between two parties, sybil-ring vouching, ownership/provenance,
+recovery-guardian) and found only the first is actually a good fit for
+arbiter-adjudicated bonding — the other three need graph heuristics,
+direct cryptographic verification, and a pre-finalization challenge
+window respectively, and would be badly served by forcing them through
+one mechanism. For the scoped mechanism: rejected a Kleros-style
+global crowdsourced court explicitly, since one canonical verdict
+every verifier inherits is itself the kind of capturable central
+authority this design's relative-trust principle exists to avoid — per-
+dispute arbiter choice instead (single arbiter for small bonds, a
+panel jointly picked by both parties for larger ones, per the user's
+own suggestion). Also surfaced that bonding needs real escrow, not a
+Lightning payment — a different financial primitive than the payment-
+integration path above, sharing only the non-custodial spirit, not the
+mechanism itself.

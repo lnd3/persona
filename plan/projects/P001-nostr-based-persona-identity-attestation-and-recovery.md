@@ -28,6 +28,14 @@ existing self-sovereign-identity project). Repo/project name stays
 "persona"; this is the product-facing domain/brand name, not a repo
 rename.
 
+Second domain now owned (2026-09-28): `solemn.network` — not yet
+assigned a role (product brand vs. e.g. the attestation-cost-gateway
+reference deployment vs. something else). Worth noting: "solemn" (a
+solemn oath/vow) is thematically a strong fit specifically for the
+attestation primitive, arguably a tighter match than "sovran" is for
+the identity/recovery side — not decided which domain ends up
+fronting what, or whether both stay in use for different pieces.
+
 Hosting already available (2026-09-27), separate from the above:
 `persona.cinderapps.org` (live) and `dev4637.persona.cinderapps.org`
 (dev) — subdomains of `cinder`'s existing `cinderapps.org` multi-
@@ -196,3 +204,6 @@ quality disputes between two identified parties) and a poor-to-wrong
 fit for the other three (sybil-ring vouching, ownership/provenance,
 recovery disputes), which each need a different, still-undesigned
 mechanism instead of being forced through one.
+
+2026-09-28 — Second domain acquired: `solemn.network`, role not yet
+assigned relative to `sovranpersona.com`.

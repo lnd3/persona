@@ -164,8 +164,11 @@ in [[D001]].
       `internal/attestation`, `internal/nip98`; all tests pass
       including a live publish/fetch round trip against a real public
       relay. This repo now has working code, not just a plan.
-- [ ] File the next action(s): relative-trust computation, recovery,
-      payment integration, and bonding/slashing all remain unfiled
+- [x] File [[A002]]: relative-trust computation — done 2026-09-28,
+      builds on A001, scoped to the web-of-trust graph-weighting
+      algorithm only (payment/bond signals explicitly deferred)
+- [ ] File the remaining actions: recovery, payment integration, and
+      bonding/slashing all still remain unfiled
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -306,3 +309,12 @@ NIP-98 as the earlier language decision assumed, so it's hand-
 implemented instead. Next up: none of trust computation, recovery,
 payment integration, or bonding/slashing have their own action filed
 yet.
+
+2026-09-28 — Filed [[A002]]: relative-trust computation, building on
+A001's fetch/verify primitives. D001's Trust model states the
+"weight against your own vouched set" philosophy but no algorithm, so
+A002 makes the concrete choices itself: a dedicated `trust` edge
+claim_type separate from content claims, bounded depth-3 propagation
+with per-hop weight halving, caller-supplied seed set, best-path (not
+summed) scoring. Payment-receipt and bond/dispute status as additional
+trust signals explicitly deferred to their own not-yet-filed actions.

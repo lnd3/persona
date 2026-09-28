@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-28 09:20:37 UTC*
+*Last updated: 2026-09-28 10:10:55 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -35,3 +35,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | ID | Title | Status | Design | Open Tasks |
 | --- | --- | --- | --- | --- |
 | [A001](actions/A001-core-identity-and-attestation-event-layer.md) | Core identity and attestation event layer | DONE | D001 | TBD |
+| [A002](actions/A002-relative-trust-computation.md) | Relative trust computation (web-of-trust weighting) | PLANNING | D001 | TBD |

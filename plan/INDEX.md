@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-28 08:58:23 UTC*
+*Last updated: 2026-09-28 09:04:47 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -34,3 +34,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 
 | ID | Title | Status | Design | Open Tasks |
 | --- | --- | --- | --- | --- |
+| [A001](actions/A001-core-identity-and-attestation-event-layer.md) | Core identity and attestation event layer | PLANNING | D001 | TBD |

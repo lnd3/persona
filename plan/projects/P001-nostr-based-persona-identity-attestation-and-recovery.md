@@ -6,7 +6,7 @@ priority: MEDIUM
 priority_drivers:
   - strategic_edge
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-09-28
 depends: []
 external_dependencies:
   - cinder P004 / L402 (Lightning payment rail) — required for
@@ -149,6 +149,13 @@ in [[D001]].
       between two identified parties); sybil-ring vouching, ownership/
       provenance, and recovery disputes explicitly need separate,
       still-undesigned mechanisms — see D001
+- [x] Resolve GDPR right-to-erasure tension — done 2026-09-28:
+      architectural avoidance first, crypto-shredding fallback,
+      per-operator controller responsibility — see D001. **All five of
+      D001's original open questions are now resolved; D001 moved to
+      DONE.**
+- [ ] File the first implementation action(s) against the now-complete
+      D001 — nothing filed yet
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -252,3 +259,16 @@ good structural fit for `EphemNet`'s own domain-naming/dispute
 problem — recorded as a cross-repo pointer in Linked above,
 deliberately not started in `EphemNet`'s own plan yet (that's separate
 design work belonging there, not a drive-by from here).
+
+2026-09-28 — Resolved the last open question, GDPR right-to-erasure:
+architectural avoidance first (keep personal data off the public
+attestation layer by default), cryptographic erasure/crypto-shredding
+as the fallback (subject-controlled key destruction, not byte
+removal), GDPR-controller responsibility distributed per-operator
+rather than solved once at the protocol level — the fourth instance
+of the same no-canonical-authority pattern. **All five of D001's
+original open questions are now resolved.** Moved D001's own status to
+DONE per lplan's own schema (design complete; implementation tracked
+in actions). This project (P001) stays PLANNING — no action files
+exist yet, and "not in scope yet: implementation" in Scope above still
+holds until the first one is filed.

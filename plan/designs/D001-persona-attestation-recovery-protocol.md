@@ -1,10 +1,10 @@
 ---
 id: D001
 title: Persona identity protocol — Nostr-based keys, peer attestation, social recovery
-status: PLANNING
+status: DONE
 project: P001
 created: 2026-09-21
-updated: 2026-09-21
+updated: 2026-09-28
 ---
 
 ## Summary
@@ -371,6 +371,55 @@ published to any relay.
   a positioning question, not an architectural blocker, and separate
   from the "where does persona run" open question below.
 
+**Data protection / GDPR right-to-erasure (resolved 2026-09-28).**
+Nostr relays are independently operated
+and copy data freely once published — there is no single deletable
+copy, and NIP-09 "deletion" events are only advisory (a well-behaved
+relay hides the referenced event; nothing stops another relay from
+ignoring the request, or a client that already fetched it from keeping
+a copy). Protocol-level guaranteed erasure isn't achievable on this
+transport, full stop — the honest answer routes around that rather
+than pretending otherwise, the same discipline this design already
+applies to recovery's residual guardian-collusion risk.
+
+- **Architectural avoidance, as the primary strategy.** Claims
+  reference pseudonymous keys and abstract `claim_type`/`claim_value`s
+  by default — nothing in a public attestation event should actually
+  constitute "personal data" under GDPR's definition unless someone
+  deliberately puts their own real-world PII into a claim they
+  control. No personal data on the wire means no erasure obligation to
+  satisfy in the first place.
+- **Cryptographic erasure ("crypto-shredding") as the fallback**, for
+  anything that genuinely must reference personal content: encrypt
+  `claim_value` with a key the *subject* — not the attester — controls,
+  so erasure means the subject destroying their own key. The ciphertext
+  persists on relays permanently, but becomes permanently unreadable.
+  This is the accepted pattern other immutable-ledger projects use to
+  reconcile immutability with erasure obligations. **Stated honestly,
+  not marketed around**: metadata, the fact an attestation existed at
+  all, and the ciphertext itself all still persist — this satisfies
+  the spirit of erasure for the underlying personal content, not a
+  literal removal of bytes from every relay that ever held them.
+- **"Who's the controller" resolves the same way the other open
+  questions have.** There is no single global controller across an
+  independently-operated relay network (reinforced by this design's
+  own choice to run on the public Nostr network rather than a
+  project-operated one), so GDPR responsibility attaches per-operator:
+  whoever's software actually stores personal data — a client, an
+  attestation-cost gateway operator — is the controller for what *they*
+  store. This design's job is minimizing what any operator needs to
+  store at all, not solving erasure for the whole network — the fourth
+  instance of the recurring pattern named in the `claim_type`
+  governance section above: substitute distributed, per-operator
+  responsibility wherever a single canonical authority would otherwise
+  be needed.
+- **Still genuinely open**: the exact threshold for what counts as
+  "personal data" triggering the encrypted-`claim_value` path by
+  default (a policy/legal judgment call, not resolved here), and
+  whether this project needs its own plain-language data-protection
+  notice given `superplan`'s existing EU-regulatory-posture leaning
+  (T004) — a product/legal task, not an architectural one.
+
 ## Key Decisions
 
 - **Adopt Nostr's identity/event format rather than a custom
@@ -436,6 +485,15 @@ published to any relay.
   design: wherever a canonical authority would otherwise be needed,
   substitute a per-verifier choice of whose authority to trust
   instead.
+- **GDPR erasure handled by architectural avoidance first, crypto-
+  shredding as fallback, responsibility distributed per-operator**:
+  keep personal data off the public attestation layer by default;
+  where it must appear, encrypt under a subject-controlled key so
+  erasure means key destruction, not byte removal; no single global
+  controller across an independently-operated relay network, so
+  responsibility attaches to whoever's software actually stores
+  something — the fourth instance of this design's recurring
+  no-canonical-authority pattern.
 
 ## Open Questions / Unknowns
 
@@ -466,13 +524,16 @@ published to any relay.
   non-authoritative NIP-style spec registry for convergence on common
   types. See the new "`claim_type` namespace governance" Architecture
   subsection above.
-- **Data-protection tension**: an append-only, public, peer-attested
-  claim history sits in real tension with data-protection regimes that
-  include a "right to erasure" (GDPR-style) — not addressed at all
-  yet, and worth resolving before, not after, real personal data flows
-  through this system, especially given how much this whole product
-  group already leans on the EU's regulatory posture elsewhere
-  (`superplan`'s T004).
+- **Data-protection tension — resolved 2026-09-28**: architectural
+  avoidance first (no personal data on the public attestation layer by
+  default), cryptographic erasure as the fallback for anything that
+  must reference personal content, GDPR-controller responsibility
+  distributed per-operator rather than solved at the protocol level.
+  See the new "Data protection / GDPR right-to-erasure" Architecture
+  subsection above. Still genuinely open within that: the exact
+  "personal data" threshold that triggers encryption by default, and
+  whether this project needs its own data-protection notice — policy/
+  legal tasks, not architectural ones.
 
 ## Related
 
@@ -569,3 +630,20 @@ governor), it substitutes a per-verifier choice of whose authority to
 trust instead. Worth keeping in mind as a standing design instinct for
 whatever open question comes next, not just documented after the
 fact each time.
+
+2026-09-28 — Resolved the last open question: GDPR right-to-erasure.
+Started from the honest limit rather than looking for a way around it
+— Nostr relays are independently operated and copy freely once
+published, so protocol-level guaranteed erasure genuinely isn't
+achievable, the same "state the residual risk plainly" discipline
+already applied to recovery's guardian-collusion risk. Landed on
+architectural avoidance as the primary fix (keep personal data off the
+public layer by default, so there's usually nothing to erase),
+cryptographic erasure/crypto-shredding as the fallback for anything
+that must reference personal content (subject-controlled key
+destruction, not byte removal), and — recognizing the fourth instance
+of the same recurring shape — GDPR-controller responsibility
+distributed per-operator rather than solved once at the protocol
+level, consistent with there being no single canonical authority
+anywhere else in this design. All five of D001's original open
+questions are now resolved; nothing left unaddressed in this design.

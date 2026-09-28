@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-28 08:53:30 UTC*
+*Last updated: 2026-09-28 08:58:23 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -26,7 +26,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 
 | ID | Title | Status | Project | Doc |
 | --- | --- | --- | --- | --- |
-| [D001](designs/D001-persona-attestation-recovery-protocol.md) | Persona identity protocol — Nostr-based keys, peer attestation, social recovery | PLANNING | P001 | (link if applicable) |
+| [D001](designs/D001-persona-attestation-recovery-protocol.md) | Persona identity protocol — Nostr-based keys, peer attestation, social recovery | DONE | P001 | (link if applicable) |
 
 ---
 

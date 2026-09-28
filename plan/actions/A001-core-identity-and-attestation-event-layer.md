@@ -1,7 +1,7 @@
 ---
 id: A001
 title: Core identity and attestation event layer
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-28
@@ -70,37 +70,49 @@ an already-resolved piece of D001, just not built yet):
       D001.
 
 ### Identity layer
-- [ ] Persona keypair generation (secp256k1, Nostr's own key format —
-      no custom scheme, per D001's Key Decision)
-- [ ] Nostr key encoding (`npub`/`nsec` bech32, per NIP-19) for
-      human-facing display/copy-paste
+- [x] Persona keypair generation (secp256k1, Nostr's own key format —
+      no custom scheme, per D001's Key Decision) —
+      `internal/identity/identity.go`
+- [x] Nostr key encoding (`npub`/`nsec` bech32, per NIP-19) for
+      human-facing display/copy-paste — `Persona.Npub`/`Nsec`,
+      `DecodeNpub`
 
 ### Attestation event
-- [ ] Define and implement the event schema at `kind: 3300`:
+- [x] Define and implement the event schema at `kind: 3300`:
       `attester_key`, `subject_key`, `claim_type`, `claim_value`,
       `timestamp`, `signature`, per D001's Attestation Primitive
-      section
-- [ ] Enforce `claim_type` reverse-domain namespacing at the point of
-      construction (D001's `claim_type` governance section) — reject
-      or warn on a non-namespaced type
-- [ ] Human-readable `content` summary field for graceful degradation
-      in generic Nostr clients (D001's interop-scope resolution)
-- [ ] Sign and publish an attestation event to the public Nostr relay
+      section — `internal/attestation/attestation.go`
+- [x] Enforce `claim_type` reverse-domain namespacing at the point of
+      construction (D001's `claim_type` governance section) — chose
+      **reject**, not warn, on a non-namespaced type
+      (`ValidateClaimType`/`ErrInvalidClaimType`)
+- [x] Human-readable `content` summary field for graceful degradation
+      in generic Nostr clients (D001's interop-scope resolution) —
+      `New`'s `summary` parameter
+- [x] Sign and publish an attestation event to the public Nostr relay
       network (multi-relay publish for redundancy, standard Nostr
-      client practice)
-- [ ] Fetch and verify attestation events referencing a given
-      `subject_key` (signature check, no central lookup — per D001)
+      client practice) — `Publish`
+- [x] Fetch and verify attestation events referencing a given
+      `subject_key` (signature check, no central lookup — per D001) —
+      `FetchForSubject`, `Verify`
 
 ### Sign-in (NIP-98)
-- [ ] Implement NIP-98 HTTP auth signing/verification (challenge →
+- [x] Implement NIP-98 HTTP auth signing/verification (challenge →
       sign → verify), the base sign-in mechanism per D001 — no
-      billing/payment gate yet, that's a separate later action
+      billing/payment gate yet, that's a separate later action —
+      `internal/nip98/nip98.go` (go-nostr only exposes the kind-27235
+      constant, not a NIP-98 flow, so this is implemented directly on
+      the base `Event` type)
 
 ### Tests
-- [ ] Round-trip test: generate persona, publish attestation, fetch
-      and verify it back
-- [ ] Reject a non-namespaced `claim_type`
-- [ ] NIP-98 sign-in challenge/verify round trip
+- [x] Round-trip test: generate persona, publish attestation, fetch
+      and verify it back — `TestPublishAndFetchRoundTrip`, run live
+      against `wss://relay.damus.io` (skips gracefully if unreachable)
+- [x] Reject a non-namespaced `claim_type` —
+      `TestRejectNonNamespacedClaimType`
+- [x] NIP-98 sign-in challenge/verify round trip —
+      `TestBuildAndVerifyRoundTrip` plus wrong-url/wrong-method/stale
+      rejection tests
 
 ## Log
 
@@ -128,3 +140,25 @@ NIP-90's DVM job kinds). Flagged one caveat: checked via a summarized
 fetch, not an exhaustive registry parse — needs a final re-check
 against the live `nostr-protocol/nips` repo before shipping. Both of
 A001's implementation-decision tasks are now resolved.
+
+2026-09-28 — Implemented. Go module `github.com/lnd3/persona`
+(matching `EphemNet`'s fully-qualified module-path style), using
+`github.com/nbd-wtf/go-nostr` v0.52.3 for the base event/key/relay
+primitives and NIP-19 encoding. Three packages, `internal/` per
+`cinder`/`EphemNet`'s own layout convention:
+`internal/identity` (keypair gen, npub/nsec), `internal/attestation`
+(the `kind: 3300` event, `claim_type` namespacing enforcement,
+publish/fetch/verify), `internal/nip98` (sign-in, implemented directly
+since go-nostr only exposes the kind constant, not a NIP-98 flow).
+Corrected one inaccurate claim from the earlier language decision:
+go-nostr does **not** cover NIP-98 out of the box as stated then —
+checked the actual module contents before writing code and found only
+the `KindHTTPAuth` constant, so NIP-98 is hand-implemented on the base
+`Event` type instead (straightforward, ~90 lines). All tests pass,
+including a live round-trip publish/fetch against a real public relay
+(`wss://relay.damus.io`) — direct, working confirmation of D001's own
+"runs on the public Nostr relay network" resolution, not just a
+design-time claim. Everything this action scoped is done; moved to
+DONE. The deferred pieces (trust computation, recovery, payment
+integration, bonding/slashing) remain separate, not-yet-filed actions,
+per this action's own Context section.

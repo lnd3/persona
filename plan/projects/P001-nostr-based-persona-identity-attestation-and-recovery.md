@@ -1,7 +1,7 @@
 ---
 id: P001
 title: Nostr-based persona identity, attestation, and recovery
-status: PLANNING
+status: IN_PROGRESS
 priority: MEDIUM
 priority_drivers:
   - strategic_edge
@@ -91,9 +91,9 @@ in [[D001]].
   download page for that application. Site should carry origin/author
   and contact info. Not yet designed — recorded as a known
   requirement, not a spec.
-- Not in scope yet: implementation. Design-stage project, matching
-  where `cinder` was between its founding thesis and its own first
-  design docs.
+- Implementation now underway (2026-09-28), starting with [[A001]]:
+  the core identity and attestation event layer. No longer purely a
+  design-stage project.
 - Not in scope: this project's own payment rail — depends on `cinder`'s
   P004/L402, sequenced after it per `superplan`'s M002 build order.
 - Resolved (2026-09-28): runs on the public Nostr relay network, full
@@ -159,6 +159,13 @@ in [[D001]].
       attestation event layer, scoped tight (identity + the
       attestation event itself), everything else in D001 explicitly
       deferred to later actions
+- [x] Implement A001 — done 2026-09-28, moved to DONE. Go module
+      `github.com/lnd3/persona`, `internal/identity`,
+      `internal/attestation`, `internal/nip98`; all tests pass
+      including a live publish/fetch round trip against a real public
+      relay. This repo now has working code, not just a plan.
+- [ ] File the next action(s): relative-trust computation, recovery,
+      payment integration, and bonding/slashing all remain unfiled
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -287,3 +294,15 @@ implementation decisions as still open, not silently assumed:
 language/stack (Go is the likely default, matching `cinder`/
 `EphemNet`, but not yet actually decided for this repo) and the
 attestation event's Nostr `kind` number.
+
+2026-09-28 — Implemented A001. This project moved from PLANNING to
+IN_PROGRESS — it now has working code, not just a resolved design.
+Go module `github.com/lnd3/persona` using `github.com/nbd-wtf/go-nostr`
+for base primitives, three `internal/` packages (identity, attestation,
+nip98), full test suite passing including a live round-trip
+publish/fetch against a real public relay. See A001's own log for the
+one correction made along the way: go-nostr does not actually cover
+NIP-98 as the earlier language decision assumed, so it's hand-
+implemented instead. Next up: none of trust computation, recovery,
+payment integration, or bonding/slashing have their own action filed
+yet.

@@ -36,10 +36,16 @@ an already-resolved piece of D001, just not built yet):
 ## Tasks
 
 ### Decisions needed before/at implementation start
-- [ ] Pick an implementation language/stack. `cinder` and `EphemNet`
-      are both Go — likely the right default for tooling/ops
-      consistency across the product family (shared `deploy/` pattern
-      per P001), but not yet actually decided for this repo.
+- [x] **Language/stack: Go — decided 2026-09-28.** Consistency with
+      `cinder`/`EphemNet` (shared `deploy/` pattern, same operator
+      running all of them) was the starting reason, but it holds up
+      technically on its own merits too: mature secp256k1/Schnorr
+      signing libraries already used elsewhere in this product family
+      (btcec, the same primitive class `cinder` already depends on),
+      solid websocket support for relay connections, and an existing,
+      actively maintained Nostr client library
+      (`nbd-wtf/go-nostr`) that covers NIP-01/NIP-19/NIP-98 directly —
+      not starting from zero on relay/event plumbing.
 - [ ] Pick and document the attestation event's Nostr `kind` number.
       D001 says NIP-58 is "the base pattern," not that this reuses
       NIP-58's own kind numbers (badge award/definition kinds don't
@@ -86,3 +92,11 @@ foundational piece: identity + the attestation event layer itself,
 nothing layered on top yet. Two real implementation decisions flagged
 as open rather than silently assumed: language/stack choice, and the
 attestation event's actual Nostr `kind` number.
+
+2026-09-28 — Decided language/stack: Go. Started from product-family
+consistency (`cinder`/`EphemNet` both Go, same operator, shared
+`deploy/` pattern) but confirmed on independent technical merit before
+committing — existing secp256k1/Schnorr signing libraries already used
+elsewhere in this family, and `nbd-wtf/go-nostr` already covers
+NIP-01/NIP-19/NIP-98, so relay/event plumbing isn't starting from
+zero. `kind` number still open.

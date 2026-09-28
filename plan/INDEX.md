@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-28 09:08:55 UTC*
+*Last updated: 2026-09-28 09:20:37 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -18,7 +18,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 
 | ID | Title | Status | Priority | Key Open Work |
 | --- | --- | --- | --- | --- |
-| [P001](projects/P001-nostr-based-persona-identity-attestation-and-recovery.md) | Nostr-based persona identity, attestation, and recovery | PLANNING | MEDIUM | TBD |
+| [P001](projects/P001-nostr-based-persona-identity-attestation-and-recovery.md) | Nostr-based persona identity, attestation, and recovery | IN_PROGRESS | MEDIUM | TBD |
 
 ---
 
@@ -34,4 +34,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 
 | ID | Title | Status | Design | Open Tasks |
 | --- | --- | --- | --- | --- |
-| [A001](actions/A001-core-identity-and-attestation-event-layer.md) | Core identity and attestation event layer | PLANNING | D001 | TBD |
+| [A001](actions/A001-core-identity-and-attestation-event-layer.md) | Core identity and attestation event layer | DONE | D001 | TBD |

@@ -154,8 +154,11 @@ in [[D001]].
       per-operator controller responsibility — see D001. **All five of
       D001's original open questions are now resolved; D001 moved to
       DONE.**
-- [ ] File the first implementation action(s) against the now-complete
-      D001 — nothing filed yet
+- [x] File the first implementation action against the now-complete
+      D001 — done 2026-09-28, see [[A001]]: core identity and
+      attestation event layer, scoped tight (identity + the
+      attestation event itself), everything else in D001 explicitly
+      deferred to later actions
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -272,3 +275,15 @@ DONE per lplan's own schema (design complete; implementation tracked
 in actions). This project (P001) stays PLANNING — no action files
 exist yet, and "not in scope yet: implementation" in Scope above still
 holds until the first one is filed.
+
+2026-09-28 — Filed [[A001]]: core identity and attestation event
+layer, the first action against D001. Scoped tight to identity +
+the attestation event itself (generation, schema, `claim_type`
+namespacing enforcement, publish/fetch/verify on the public Nostr
+network, NIP-98 sign-in) — everything else in D001 (trust computation,
+recovery, payment integration, bonding/slashing) explicitly deferred
+to later actions rather than bundled in. Flagged two real
+implementation decisions as still open, not silently assumed:
+language/stack (Go is the likely default, matching `cinder`/
+`EphemNet`, but not yet actually decided for this repo) and the
+attestation event's Nostr `kind` number.

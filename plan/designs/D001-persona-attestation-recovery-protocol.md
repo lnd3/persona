@@ -135,6 +135,39 @@ that persona runs), and — critically — **recovery-guardian and
 recovery-confirmation attestations**, which is how recovery (below)
 reuses this same primitive instead of needing its own system.
 
+**`claim_type` namespace governance (resolved 2026-09-28).** NIPs
+already govern Nostr's event *kinds* this way; this needs the same
+model one layer down, for the `claim_type` vocabulary living inside
+the attestation event kind itself. Two parts, working together:
+
+- **A namespacing convention, so minting a new `claim_type` never
+  needs anyone's permission.** Every `claim_type` carries a
+  reverse-domain-style prefix (e.g. `org.solemn.skill.rust`,
+  `com.example.recovery_guardian`) — this alone prevents collision
+  with no registry required at all, the same purpose NIP-78's own
+  app-data namespacing already serves elsewhere in the Nostr
+  ecosystem.
+- **An open, non-authoritative spec registry for convergence on common
+  types** — a NIP-style document (public repo, PR-based, rough
+  consensus, no formal approval gate) listing well-known `claim_type`s
+  and their `claim_value` shape. Seeded from what this design already
+  names, not designed in the abstract: `skill`/credential claims,
+  service-ownership/provenance, `recovery_guardian`/`recovery_confirm`,
+  and the dispute-related types from the bonding/slashing mechanism
+  above.
+- **The registry documents; it doesn't govern.** Same as a NIP itself
+  carries no enforcement power, an entry here is coordination, not
+  permission — nothing stops anyone from using an undocumented or
+  differently-defined `claim_type`. If two registries (or two
+  communities) disagree about what a given type means, that's the same
+  "pick whose authority you trust" relativity already used for gateway
+  operators (payment integration, above) and arbiters (dispute types,
+  above) — a pattern recurring often enough in this design that it's
+  worth naming explicitly rather than treating each instance as a
+  one-off: **wherever this design would otherwise need one canonical
+  authority, it instead makes the choice of whose authority to trust a
+  per-verifier decision.**
+
 **Trust model: relative, not global.** There is no single canonical
 "reputation score." A verifier computes trust in a claim by weighting
 it against *their own* vouched set (a web-of-trust graph, PGP-style),
@@ -395,6 +428,14 @@ published to any relay.
   Nostr's own format is taken as already locked in; degrade gracefully
   in generic clients where cheap, without contorting the schema to
   chase full semantic rendering there.
+- **`claim_type` governance mirrors NIPs one layer down**: a
+  reverse-domain namespacing convention so minting a type never needs
+  permission, plus an open, non-authoritative spec registry for
+  convergence on common types — coordination, not enforcement, same as
+  a NIP itself. Names explicitly, as a recurring pattern across this
+  design: wherever a canonical authority would otherwise be needed,
+  substitute a per-verifier choice of whose authority to trust
+  instead.
 
 ## Open Questions / Unknowns
 
@@ -420,9 +461,11 @@ published to any relay.
   arbiter panel is actually selected jointly (a fair joint-selection
   protocol isn't specified yet, just the requirement that it be
   joint).
-- **`claim_type` governance**: who governs the namespace as it grows —
-  Nostr has NIPs as a real (if informal) governance process for
-  exactly this; this design doesn't have an equivalent yet.
+- **`claim_type` governance — resolved 2026-09-28**: a reverse-domain
+  namespacing convention (permission-free minting) plus an open,
+  non-authoritative NIP-style spec registry for convergence on common
+  types. See the new "`claim_type` namespace governance" Architecture
+  subsection above.
 - **Data-protection tension**: an append-only, public, peer-attested
   claim history sits in real tension with data-protection regimes that
   include a "right to erasure" (GDPR-style) — not addressed at all
@@ -512,3 +555,17 @@ supported, not required, option. Interop scope followed from that
 choice almost for free: full wire-format compatibility, graceful
 degradation in generic clients where cheap, no further investment
 chasing full semantic rendering there.
+
+2026-09-28 — Resolved `claim_type` namespace governance: mirrored
+NIPs one layer down rather than inventing new governance machinery —
+a reverse-domain namespacing convention so minting a type needs no
+permission, plus an open, non-authoritative spec registry (PR-based,
+rough consensus) for convergence on common types, seeded from types
+this design already names. Named explicitly, prompted by noticing
+this is the third time the same shape of answer has come up: wherever
+this design would otherwise need one canonical authority (a trust
+score, a payment gateway, a dispute arbiter, now a namespace
+governor), it substitutes a per-verifier choice of whose authority to
+trust instead. Worth keeping in mind as a standing design instinct for
+whatever open question comes next, not just documented after the
+fact each time.

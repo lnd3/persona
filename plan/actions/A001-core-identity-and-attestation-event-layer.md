@@ -46,12 +46,28 @@ an already-resolved piece of D001, just not built yet):
       actively maintained Nostr client library
       (`nbd-wtf/go-nostr`) that covers NIP-01/NIP-19/NIP-98 directly —
       not starting from zero on relay/event plumbing.
-- [ ] Pick and document the attestation event's Nostr `kind` number.
-      D001 says NIP-58 is "the base pattern," not that this reuses
-      NIP-58's own kind numbers (badge award/definition kinds don't
-      match this design's generic `claim_type`/`claim_value` shape) —
-      a new custom kind needs choosing from Nostr's unreserved range
-      and documenting, the same way a NIP would.
+- [x] **Nostr `kind`: 3300 — decided 2026-09-28.** Must sit in the
+      *regular* event range (1000–9999, relay-stored, not
+      replaceable) rather than the parameterized-replaceable range
+      (30000+) — an attestation is a permanent, independent record;
+      later ones from the same attester about the same subject don't
+      overwrite earlier ones the way "latest wins" replaceable events
+      do. Checked the current NIPs kind registry (regular-event range)
+      and picked 3300: it sits in the middle of the largest confirmed-
+      open gap (~2023–4549), clear of the Label/AI-embeddings cluster
+      ending ~1987, the Torrent cluster (2003–2022), Community Post
+      Approval (4550), and NIP-90's DVM job-kind range starting ~5000
+      — isolated enough to stay clear even as neighboring ranges fill
+      in. **Caveat**: checked via a summarized fetch of the NIPs
+      index, not an exhaustive parse of the live registry — worth a
+      final re-check against `nostr-protocol/nips` at actual
+      implementation time before shipping. Documenting this choice
+      openly (here, and eventually in this repo's own docs) is this
+      project's version of a NIP submission — no central body approves
+      a kind number, but documenting it is what actually reduces
+      collision risk for everyone, the same "coordination, not
+      permission" logic already applied to `claim_type` governance in
+      D001.
 
 ### Identity layer
 - [ ] Persona keypair generation (secp256k1, Nostr's own key format —
@@ -60,9 +76,10 @@ an already-resolved piece of D001, just not built yet):
       human-facing display/copy-paste
 
 ### Attestation event
-- [ ] Define and implement the event schema: `attester_key`,
-      `subject_key`, `claim_type`, `claim_value`, `timestamp`,
-      `signature`, per D001's Attestation Primitive section
+- [ ] Define and implement the event schema at `kind: 3300`:
+      `attester_key`, `subject_key`, `claim_type`, `claim_value`,
+      `timestamp`, `signature`, per D001's Attestation Primitive
+      section
 - [ ] Enforce `claim_type` reverse-domain namespacing at the point of
       construction (D001's `claim_type` governance section) — reject
       or warn on a non-namespaced type
@@ -100,3 +117,14 @@ committing — existing secp256k1/Schnorr signing libraries already used
 elsewhere in this family, and `nbd-wtf/go-nostr` already covers
 NIP-01/NIP-19/NIP-98, so relay/event plumbing isn't starting from
 zero. `kind` number still open.
+
+2026-09-28 — Decided the attestation event's Nostr `kind`: 3300, in
+the regular-event range (1000–9999), not the parameterized-replaceable
+range — attestations are permanent independent records, not
+"latest wins." Checked the current NIPs kind registry and picked a
+number in the middle of the largest open gap, clear of neighboring
+clusters (Label/AI-embeddings, Torrent, Community Post Approval,
+NIP-90's DVM job kinds). Flagged one caveat: checked via a summarized
+fetch, not an exhaustive registry parse — needs a final re-check
+against the live `nostr-protocol/nips` repo before shipping. Both of
+A001's implementation-decision tasks are now resolved.

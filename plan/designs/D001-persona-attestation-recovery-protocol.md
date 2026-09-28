@@ -24,10 +24,9 @@ existing key format — not a custom scheme. This buys interoperability
 with existing Nostr tooling/relays/libraries where useful, and avoids
 inventing new cryptography, consistent with this whole plan family's
 standing discipline (`superplan`'s own P003: "never invent new
-cryptography, compose audited primitives"). Whether this project runs
-its own relay-equivalent transport, reuses the public Nostr relay
-network, or routes through `EphemNet`-hosted self-hosted relays is an
-open question — see below.
+cryptography, compose audited primitives"). This project runs on the
+public Nostr relay network rather than its own relay-equivalent
+transport — see the Relay hosting and interop scope section below.
 
 **Why Nostr, in full — pros, cons, and what it actually gives us.**
 Nostr ("Notes and Other Stuff Transmitted by Relays") is not a
@@ -72,6 +71,47 @@ languages, with no single company able to shut the ecosystem down.
   rendezvous problem. Worth revisiting whether `EphemNet`'s own
   mechanism could double as Nostr relay discovery down the line, once
   both are further along — not a decision to make now.
+
+**Relay hosting and interop scope (resolved 2026-09-28).** Two
+questions that turn out to be more decoupled than they first looked,
+once the Key Decision above (Nostr's own key/event format, not a
+custom protocol) is taken as already locked in: a true wire-format
+*fork* was never really on the table, since new `claim_type`s are
+additive NIP-style extensions, not a protocol break. What's actually
+open is narrower — which relays carry the traffic, and how much effort
+goes into staying legible to generic, non-persona-aware Nostr clients.
+
+- **Where this runs: the public Nostr relay network, chosen over
+  running a dedicated persona relay network.** A project-operated
+  relay network was considered and rejected: if it became the de
+  facto place personas publish, it would recreate exactly the kind of
+  gatekeeper this whole product group's mission (`superplan`'s T007)
+  exists to avoid, plus real ongoing operational burden (uptime, abuse
+  handling) — the same "don't take on operational weight prematurely"
+  reasoning already applied to choosing hosted Lightning and Aperture
+  over self-hosting/rolling-your-own in `cinder`'s D005. The public
+  network is real, already-proven infrastructure at scale, at zero
+  build cost, and genuinely decentralized already (many independent
+  operators, no single required one) — the same reuse-over-build
+  instinct behind picking Aperture in the first place.
+- **`EphemNet`-routed self-hosted relays stay a supported option, not
+  a v1 investment.** Philosophically the most consistent choice (each
+  person's own relay, no institutional dependency at all), but with no
+  production precedent yet and the relay-discovery problem (which
+  relay to even query for a given persona) still genuinely unresolved
+  — a real option to keep open, not something worth designing further
+  for v1 specifically.
+- **Interop scope: full wire-format compatibility, not a fork —
+  answered essentially for free by the relay choice above.** Since the
+  format was already Nostr-compatible and the transport is now the
+  public network itself, the remaining open question was only ever
+  "how legible should this be to a generic client," not "compatible or
+  not." Resolved as: degrade gracefully where cheap (e.g. a
+  human-readable `content` summary on attestation events), but don't
+  contort the schema chasing full semantic rendering in generic
+  clients — the trust/verification computation is this project's own
+  value-add regardless, same as Nostr itself not providing a
+  trust-scoring layer (see above).
 
 **Event/claim format**: Nostr-style signed JSON events, reusing
 existing NIP patterns rather than inventing new wire formats:
@@ -343,22 +383,30 @@ published to any relay.
   payment**: L402 settles instantly and isn't the right primitive for
   funds that must stay forfeitable pending a dispute window; DLC/
   oracle-based escrow deferred past v1, same spirit as deferring FROST.
+- **Runs on the public Nostr relay network, not a dedicated persona
+  relay network**: a project-operated relay would recreate the kind of
+  gatekeeper this project's own mission rejects, plus real operational
+  burden not worth taking on prematurely — the same reasoning already
+  applied to choosing hosted Lightning/Aperture over self-hosting in
+  `cinder`. `EphemNet`-routed self-hosting stays a supported option,
+  not a v1 investment.
+- **Interop scope: full wire-format compatibility, not a fork** —
+  answered by the relay choice above once the Key Decision to reuse
+  Nostr's own format is taken as already locked in; degrade gracefully
+  in generic clients where cheap, without contorting the schema to
+  chase full semantic rendering there.
 
 ## Open Questions / Unknowns
 
-- **Where this actually runs**: own relay infrastructure, the
-  existing public Nostr relay network (real network-effect upside,
-  but inherits Nostr's existing spam/noise culture and userbase
-  expectations), or `EphemNet`-routed self-hosted relays. `EphemNet`
-  now has a concrete, buildable DNS-forwarding mechanism that makes
-  self-hosting a real option rather than an aspiration — this doesn't
-  pick a winner, but removes "self-hosting is too impractical" as a
-  reason to rule it out. Still close to a product-positioning
-  decision, not just a technical one.
-- **Interop scope**: fully compatible with the existing Nostr network,
-  or a deliberately separate, incompatible fork that doesn't inherit
-  Nostr's existing baggage but also doesn't get its existing network
-  effect? Not decided.
+- **Where this actually runs — resolved 2026-09-28**: the public
+  Nostr relay network, not a dedicated persona relay network. See the
+  new "Relay hosting and interop scope" Architecture subsection above
+  for the full reasoning. `EphemNet`-routed self-hosting remains a
+  supported option for anyone wanting zero reliance on public
+  operators, but isn't a v1 design investment.
+- **Interop scope — resolved 2026-09-28**: full wire-format
+  compatibility, not a fork; graceful degradation in generic clients
+  where cheap, no further chase beyond that. See the same subsection.
 - **Bonding/slashing mechanics — resolved 2026-09-27 for one dispute
   type, deliberately not the other three.** See the new "Dispute
   types" Architecture subsection above: scoped to behavioral/quality
@@ -449,3 +497,18 @@ own suggestion). Also surfaced that bonding needs real escrow, not a
 Lightning payment — a different financial primitive than the payment-
 integration path above, sharing only the non-custodial spirit, not the
 mechanism itself.
+
+2026-09-28 — Resolved the two remaining coupled open questions: where
+this runs, and interop scope. Recognized they were more decoupled than
+they first looked once the existing Key Decision to reuse Nostr's own
+format is taken as already locked in — a true wire-format fork was
+never really on the table, so the actual open question was narrower
+than "compatible vs. fork." Chose the public Nostr relay network over
+a dedicated persona relay network, for the same reason `cinder` chose
+hosted Lightning/Aperture over self-hosting: a project-operated relay
+would recreate a gatekeeper and take on operational burden this
+project doesn't need. `EphemNet`-routed self-hosting stays a
+supported, not required, option. Interop scope followed from that
+choice almost for free: full wire-format compatibility, graceful
+degradation in generic clients where cheap, no further investment
+chasing full semantic rendering there.

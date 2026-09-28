@@ -96,19 +96,21 @@ in [[D001]].
   design docs.
 - Not in scope: this project's own payment rail — depends on `cinder`'s
   P004/L402, sequenced after it per `superplan`'s M002 build order.
-- Explicitly not yet decided: where this actually runs (own relays,
-  the existing public Nostr network, or `EphemNet`-routed self-hosted
-  relays — now concretely possible, not yet chosen), Nostr interop
-  scope, and the bonding/slashing mechanics for disputed attestations.
+- Resolved (2026-09-28): runs on the public Nostr relay network, full
+  wire-format compatibility, not a fork; `EphemNet`-routed self-hosting
+  stays a supported option, not a v1 investment. Resolved (2026-09-27):
+  bonding/slashing mechanics, scoped to one dispute type. See D001 for
+  both.
 
 ## Linked
 
 - **Thesis**: [[T001]]
 - **Design**: [[D001]]
 - **Dependency**: `cinder`'s P004 (L402 payment rail)
-- **Related repo**: `EphemNet` — its DNS-forwarding capability makes
-  self-hosted relays a real option for this project's own "where does
-  this run" question
+- **Related repo**: `EphemNet` — its DNS-forwarding capability is what
+  keeps self-hosted relays a real, supported (though not v1) option
+  now that "where this runs" has resolved to the public Nostr relay
+  network by default
 - **Origin**: this repo's design was previously tracked only in
   `superplan` (theses T010/T011, project P008, design D003) — see that
   repo for the earlier design-formation history; this repo's own plan
@@ -119,8 +121,10 @@ in [[D001]].
 
 - [x] Consolidate the design-formation conversation into a real
       thesis and project (this action)
-- [ ] Resolve remaining open questions: where this runs, Nostr interop
-      scope
+- [x] Resolve where this runs and Nostr interop scope — done
+      2026-09-28: public Nostr relay network, not a dedicated persona
+      relay network; full wire-format compatibility, not a fork — see
+      D001
 - [x] Design payment integration against `cinder`'s D005 pattern
       (Aperture-fronted attestation-cost gateways) — done 2026-09-22,
       see D001
@@ -207,3 +211,13 @@ mechanism instead of being forced through one.
 
 2026-09-28 — Second domain acquired: `solemn.network`, role not yet
 assigned relative to `sovranpersona.com`.
+
+2026-09-28 — Resolved D001's two remaining coupled open questions
+(see D001's own log): runs on the public Nostr relay network rather
+than a dedicated persona relay network, for the same reasoning
+`cinder` used to choose hosted Lightning/Aperture over self-hosting —
+avoids recreating a gatekeeper and avoids operational burden not worth
+taking on prematurely. `EphemNet`-routed self-hosting stays a
+supported, non-required option. Interop scope followed from that:
+full wire-format compatibility, not a fork, with graceful degradation
+in generic Nostr clients where cheap.

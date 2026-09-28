@@ -98,9 +98,11 @@ in [[D001]].
   P004/L402, sequenced after it per `superplan`'s M002 build order.
 - Resolved (2026-09-28): runs on the public Nostr relay network, full
   wire-format compatibility, not a fork; `EphemNet`-routed self-hosting
-  stays a supported option, not a v1 investment. Resolved (2026-09-27):
-  bonding/slashing mechanics, scoped to one dispute type. See D001 for
-  both.
+  stays a supported option, not a v1 investment. `claim_type`
+  namespace governance also resolved (2026-09-28): reverse-domain
+  namespacing plus an open, non-authoritative NIP-style spec registry.
+  Resolved (2026-09-27): bonding/slashing mechanics, scoped to one
+  dispute type. See D001 for all three.
 
 ## Linked
 
@@ -111,6 +113,17 @@ in [[D001]].
   keeps self-hosted relays a real, supported (though not v1) option
   now that "where this runs" has resolved to the public Nostr relay
   network by default
+- **Idea worth carrying over to `EphemNet` (noted 2026-09-28, not
+  designed there yet)**: D001's `claim_type` namespace-governance
+  pattern — reverse-domain namespacing for permission-free minting,
+  plus an open, non-authoritative registry for convergence, with
+  disputes resolved by per-verifier choice of whose authority to
+  trust rather than one canonical arbiter — looks structurally like a
+  good fit for `EphemNet`'s own domain-naming/dispute problem (checked
+  2026-09-28: nothing under this in `EphemNet`'s own `plan/` yet).
+  Deliberately left as a pointer here, not started in `EphemNet`'s
+  plan — that's real design work belonging in that repo's own
+  project/design structure, not a drive-by from this repo's context.
 - **Origin**: this repo's design was previously tracked only in
   `superplan` (theses T010/T011, project P008, design D003) — see that
   repo for the earlier design-formation history; this repo's own plan
@@ -125,6 +138,9 @@ in [[D001]].
       2026-09-28: public Nostr relay network, not a dedicated persona
       relay network; full wire-format compatibility, not a fork — see
       D001
+- [x] Resolve `claim_type` namespace governance — done 2026-09-28:
+      reverse-domain namespacing plus an open, non-authoritative
+      NIP-style spec registry — see D001
 - [x] Design payment integration against `cinder`'s D005 pattern
       (Aperture-fronted attestation-cost gateways) — done 2026-09-22,
       see D001
@@ -221,3 +237,18 @@ taking on prematurely. `EphemNet`-routed self-hosting stays a
 supported, non-required option. Interop scope followed from that:
 full wire-format compatibility, not a fork, with graceful degradation
 in generic Nostr clients where cheap.
+
+2026-09-28 — Resolved `claim_type` namespace governance in D001:
+reverse-domain namespacing (permission-free minting) plus an open,
+non-authoritative NIP-style spec registry for convergence on common
+types. This is the third open question resolved by the same recurring
+shape of answer (per-verifier choice of authority instead of one
+canonical authority) — flagged in D001 as a standing design instinct
+worth carrying into whatever's resolved next, not just noted after
+each instance.
+
+2026-09-28 — Noted the `claim_type` governance pattern looks like a
+good structural fit for `EphemNet`'s own domain-naming/dispute
+problem — recorded as a cross-repo pointer in Linked above,
+deliberately not started in `EphemNet`'s own plan yet (that's separate
+design work belonging there, not a drive-by from here).

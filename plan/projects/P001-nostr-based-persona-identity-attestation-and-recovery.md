@@ -218,11 +218,23 @@ in [[D001]].
       resolution, self-release timing); actual Bitcoin escrow script
       construction/funding/verification deliberately left to a
       separate, not-yet-filed follow-up action
-- [x] All four of D001's implementation pieces (identity/attestation,
-      trust, recovery, payment, bonding/slashing) now have an action
-      filed. Remaining work is implementing A003/A004/A005 and, once
-      A005's escrow layer needs it, filing the Bitcoin-escrow
-      follow-up action.
+- [x] Implement A005 — done 2026-09-29, moved to DONE. New
+      `internal/dispute` package: the four claim types
+      (`bond`/`dispute_challenge`/`arbiter_panel`/`dispute_verdict`),
+      `ConfirmedPanel` (two-sided matching-claim agreement),
+      `Resolve` (majority-vote, distinct-arbiter), `IsSelfReleased`
+      (per-bond window arithmetic). One real parsing gap found and
+      closed: `escrow_ref` can itself contain colons (Bitcoin
+      descriptor key-origin syntax does), which would have broken the
+      original colon-delimited `claim_value` format — fixed with
+      anchored regexes using a greedy middle capture against
+      digits-only trailing fields. 24 new tests, full repo
+      build/vet/test clean.
+- [x] **A001-A005 are now all DONE and implemented.** The only D001
+      piece still unbuilt is the Bitcoin-escrow settlement follow-up
+      A005 deliberately deferred (script construction, funding,
+      on-chain verification — a fund-loss-risk piece of work kept
+      separate on purpose), which remains unfiled.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -469,3 +481,21 @@ deferred with no library chosen. 16 new tests, full repo
 build/vet/test clean. **A001-A004 are now all DONE and implemented —
 only A005 (bonding/slashing) remains to implement**, plus its own
 deferred Bitcoin-escrow follow-up once reached.
+
+2026-09-29 — Implemented A005, moved to DONE. New `internal/dispute`
+package: the four claim types (`bond`, `dispute_challenge`,
+`arbiter_panel`, `dispute_verdict`), `ConfirmedPanel` (agreement
+between both sides' independently-published panel claims),
+`Resolve` (distinct-arbiter majority voting), `IsSelfReleased`
+(per-bond self-release window arithmetic, blocked by any matching
+challenge regardless of resolution). One real gap found and closed:
+`escrow_ref` can contain colons (Bitcoin descriptor key-origin syntax
+does), which would have broken a naive colon-split of the
+`claim_value` format — fixed with anchored regexes using a greedy
+middle capture against digits-only trailing fields, confirmed with a
+dedicated test. 24 new tests, full repo build/vet/test clean.
+**A001-A005 are now all DONE and implemented.** The only D001 piece
+still unbuilt is the Bitcoin-escrow settlement follow-up A005
+deliberately deferred throughout (script construction, funding,
+on-chain verification — a fund-loss-risk piece of work kept separate
+on purpose), which remains unfiled.

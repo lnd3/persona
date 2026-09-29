@@ -559,3 +559,17 @@ unilateral leverage without reintroducing the earlier-rejected
 single-shared-judge pattern. Left the two-appointed-arbiters-disagree
 case as a genuinely open tie-breaking question, deliberately not
 guessed.
+
+2026-09-29 — Resolved A006's tie-breaking question: the two
+independently-appointed arbiters jointly escalate to a third, using
+the same joint signing power their arbitration branch already grants
+them, rather than pre-committing a third key upfront (which would
+reopen the same chicken-and-egg problem this tier already solved
+once). Confirmed this terminates in exactly one escalation step and
+never recurses further, since binary verdicts mean a third arbiter's
+vote always immediately produces a 2-of-3 majority. The only remaining
+failure mode — the two arbiters refusing to escalate at all — is a
+cooperation failure covered by the same pre-escalation timelock
+fallback already used elsewhere in this plan, not a new residual risk.
+A006's structural design is now fully resolved; next is actually
+building it.

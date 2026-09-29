@@ -124,13 +124,53 @@ not reimplement).
     appointing their *own* representative over their *own* funds only
     — structurally more like each side hiring their own lawyer than
     one side picking a shared arbitrator for both.
-  - **Genuinely still open, not resolved here**: what happens when the
-    two independently-appointed arbiters *disagree*. A third
-    tie-breaking signer, or each side appointing a small panel instead
-    of one key, are both plausible — deliberately not decided now
-    rather than guessed; this is exactly the kind of fund-handling
-    detail this action's own mainnet gate exists to catch before it
-    matters.
+  - **Tie-break when the two appointed arbiters disagree — decided
+    2026-09-29: they jointly escalate to a third arbiter, using the
+    same joint signing power they already have.** No new key needs to
+    be pre-committed at bond-creation time to make this work: `arbiter_A`
+    and `arbiter_B` already jointly control the arbitration branch (it
+    takes both of them to move the funds at all), so instead of using
+    that joint power to decide the dispute's substance, they can use
+    the identical power procedurally — cooperatively constructing (via
+    PSBT, same tool already chosen) a transaction that moves both
+    outputs into a fresh 2-of-3 output naming themselves plus a
+    jointly-nominated third arbiter. Settlement then just needs that
+    third arbiter to agree with whichever of the original two they
+    find more persuasive (2-of-3, not the third arbiter alone) —
+    preserving some accountability rather than handing a stranger
+    unilateral power. This is the same shape as the small-bond tier's
+    own "agreeing to let someone decide is lower-friction than
+    agreeing on the decision itself" move, one level up: the two
+    arbiters are far more likely to cooperate on *escalating* than the
+    original disputants were, since they have professional/
+    reputational incentive to actually resolve the case, not a direct
+    financial stake in the outcome.
+    - **This terminates in exactly one escalation step, never
+      recurses further.** Verdicts are binary (A005's `Verdict` type:
+      `attester_wins`/`challenger_wins`, nothing else) — so the moment
+      a third arbiter casts any vote at all, they necessarily side
+      with one of the original two, and 2-of-3 is immediately reached.
+      There is no way for three binary voters to produce a fresh tie
+      once all three have actually weighed in, so no fourth or fifth
+      arbiter is ever needed. The only way this step fails to resolve
+      anything is the two original arbiters never agreeing to involve
+      a third at all — a cooperation failure, not a repeating tie, and
+      already covered by the residual below.
+    - *Rejected*: pre-committing a third tie-breaking key at
+      bond-creation time (reopens the exact chicken-and-egg problem
+      this tier already solved once — nobody exists yet to jointly
+      name a tie-breaker at funding time either), and giving per-side
+      small panels instead of single arbiters (doesn't actually
+      eliminate ties, just moves the same problem to a larger even
+      split, e.g. 3-vs-3, without a structural fix).
+    - *Residual, stated honestly*: if the two original arbiters can't
+      even agree to escalate (rarer and one step further removed than
+      the disputants themselves failing to cooperate, but not
+      impossible), nothing forces it — each side's own pre-escalation
+      timelock fallback stands as the bounded worst case, same
+      "reverts to each party keeping their own original funds, nobody
+      else's money is ever at risk" property the small-bond tier's own
+      non-cooperation residual already relies on.
   - **This tier still improves on a naive shared-multisig-from-day-one
     approach**: each side's arbitration branch only activates on
     *their own* output, so a bug in one side's script can't misdirect
@@ -201,9 +241,11 @@ not reimplement).
 - [ ] Construct the joint settlement transaction spending both outputs
       together, each via its own arbitration branch, once both
       appointed arbiters agree on a split
-- [ ] Resolve the open tie-breaking question (third signer vs. small
-      per-side panels) **before** writing the disagreement-handling
-      code — not guessed at implementation time
+- [ ] Tie-break: given the two appointed arbiters disagree, construct
+      (via PSBT, cooperatively between just the two arbiters) the
+      escalation transaction moving both outputs into a fresh 2-of-3
+      output naming both original arbiters plus a jointly-nominated
+      third; settle once any 2-of-3 agree
 
 ### Settlement (shared)
 - [ ] Given `dispute.IsSelfReleased` = true (never escalated, either
@@ -224,6 +266,15 @@ not reimplement).
       with that side's own appointed arbiter's signature; a joint
       settlement requires both; a lone appointed arbiter cannot move
       the *other* side's output
+- [ ] Larger-bond tier tie-break: the two appointed arbiters
+      disagreeing blocks direct settlement; the escalation transaction
+      to a 2-of-3 with a third arbiter succeeds only with both
+      original arbiters' cooperation; once escalated, any 2 of the 3
+      (in any combination) can settle — confirming no fourth arbiter
+      is ever structurally needed; the two arbiters refusing to
+      escalate at all leaves each side's pre-escalation timelock
+      fallback as the only path, same as the small-bond tier's
+      non-cooperation case
 - [ ] Funding-verification tests against a regtest node: unfunded,
       underfunded, and correctly-funded cases
 
@@ -297,3 +348,26 @@ agree). Left one thing genuinely open rather than guessed: what
 happens when the two independently-appointed arbiters disagree — a
 tie-breaking mechanism deferred to its own decision before that code
 gets written. Tasks rewritten around both tiers.
+
+2026-09-29 — Resolved the larger-bond tier's tie-breaking question:
+the two appointed arbiters jointly escalate to a third, using the
+exact same joint signing power their arbitration branch already grants
+them, rather than pre-committing a third key at funding time (which
+would just reopen the chicken-and-egg problem this tier already solved
+once). Cooperatively constructing an escalation transaction is a much
+lower-friction ask for two professionally-incentivized arbiters than
+it was for the original disputants, the same "agreeing to let someone
+decide beats agreeing on the decision" move the small-bond tier
+already uses, applied one level up. Confirmed this terminates in
+exactly one step and never recurses to a fourth or fifth arbiter:
+verdicts are binary, so once a third arbiter casts any vote at all
+they necessarily side with one of the original two, reaching 2-of-3
+immediately — three binary voters can't produce a fresh tie once all
+three have weighed in. The only way this stalls is the two original
+arbiters refusing to even agree to escalate, which isn't a repeating
+tie but a cooperation failure — already covered by the same
+pre-escalation timelock fallback as every other non-cooperation case
+in this plan, so no new residual risk was introduced, just extended
+the existing one. Rejected pre-committing a third key upfront and
+per-side small panels (neither actually eliminates ties structurally).
+Tasks and Tests updated to reflect the concrete escalation mechanism.

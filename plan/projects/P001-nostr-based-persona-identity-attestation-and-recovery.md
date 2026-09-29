@@ -235,6 +235,15 @@ in [[D001]].
       A005 deliberately deferred (script construction, funding,
       on-chain verification — a fund-loss-risk piece of work kept
       separate on purpose), which remains unfiled.
+- [x] File [[A006]]: Bitcoin escrow settlement — done 2026-09-29.
+      Filing it surfaced a real unresolved structural problem, not
+      just implementation choices: D001/A005's "arbiter panel chosen
+      per-dispute" is in tension with a Bitcoin script needing to name
+      its spending conditions before anyone knows who the arbiters
+      will be. Documented two candidate directions (pre-designated
+      mediator vs. voluntary escalation into joint custody) as open
+      questions rather than guessing an answer while filing; that
+      decision is A006's own first task, before any script code.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -499,3 +508,24 @@ still unbuilt is the Bitcoin-escrow settlement follow-up A005
 deliberately deferred throughout (script construction, funding,
 on-chain verification — a fund-loss-risk piece of work kept separate
 on purpose), which remains unfiled.
+
+2026-09-29 — Filed [[A006]]: Bitcoin escrow settlement, the follow-up
+A005 named throughout. Unlike every action filed so far, this one
+surfaced a real structural problem rather than just missing
+implementation detail: D001/A005 decided arbiter panels are chosen
+*per-dispute*, jointly by attester and challenger, but a Bitcoin
+script has to name its spending conditions *before* a dispute (and
+therefore an arbiter panel) exists — a bond can sit on-chain
+unchallenged for a long time first. Documented two candidate
+directions honestly as open questions rather than picking one while
+filing: a pre-designated mediator chosen at bond-creation time
+(simple, well-precedented, but contradicts the per-dispute joint
+selection D001 already decided), or voluntary escalation into joint
+custody once challenged (preserves per-dispute selection, but needs a
+real consequence for an attester who refuses to cooperate, or they
+can just wait out their original timelock and keep their bond
+regardless of the dispute). Resolving this is A006's own first task,
+before any script-construction code — deliberately not resolved by
+guessing during filing. Also gated mainnet activation behind an
+explicit independent-security-review task, given the fund-loss stakes
+this action carries that nothing else in this project does.

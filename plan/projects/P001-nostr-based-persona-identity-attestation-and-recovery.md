@@ -244,6 +244,17 @@ in [[D001]].
       mediator vs. voluntary escalation into joint custody) as open
       questions rather than guessing an answer while filing; that
       decision is A006's own first task, before any script code.
+- [ ] Implement A006 — started 2026-09-29, **not yet DONE** (large,
+      multi-part, explicitly fund-loss-risk action). New
+      `internal/escrow` package: pre-escalation CSV-timelock script,
+      small/larger-tier escalated scripts, tie-break script, the new
+      `arbiter_commitment` claim type, descriptor format, funding
+      verification logic — every script validated against `btcd`'s
+      real consensus engine, not just checked to build. Still missing:
+      PSBT-based cooperative transaction construction helpers, a real
+      `ChainQuerier` node backend (no regtest node reachable in this
+      environment), non-escalation detection, and the mainnet-gating
+      security review.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -573,3 +584,24 @@ cooperation failure covered by the same pre-escalation timelock
 fallback already used elsewhere in this plan, not a new residual risk.
 A006's structural design is now fully resolved; next is actually
 building it.
+
+2026-09-29 — Started implementing A006. New `internal/escrow` package:
+BIP68 time-based CSV timelock (`SequenceForDays`, `PreEscalationScript`),
+the small-bond and larger-bond tiers' escalated scripts
+(`SmallTierEscalatedScript`, `LargeTierEscalatedScript`), the tie-break
+2-of-3 script, a new `net.persona.core.arbiter_commitment` claim type
+(additive to A005, not a change to its shipped claim types), a narrow
+BIP380-shaped descriptor for `EscrowRef`, and funding-verification
+logic against an abstract `ChainQuerier` interface. Every script was
+validated by actually signing and executing real spends (and
+attempted-invalid spends) against `btcd`'s own consensus `txscript`
+engine, the strongest testing available without a live node — CSV
+timelock testing needed no simulated passage of time, since BIP68
+compares the script's required sequence directly against the input's
+declared value. 24 new tests, full repo clean (104 tests total).
+Explicitly **not** marked DONE: PSBT-based transaction construction
+helpers, a real `ChainQuerier` node backend (no regtest node reachable
+here), non-escalation detection, and the mainnet security-review gate
+all remain, named precisely in A006's own Tasks list rather than
+glossed over — this is the fund-loss-risk action D001 and A005 both
+flagged, and it's being treated with the caution that implies.

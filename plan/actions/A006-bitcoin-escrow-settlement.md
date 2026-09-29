@@ -249,85 +249,97 @@ not reimplement).
 ## Tasks
 
 ### Shared: pre-escalation output (both tiers, single-party self-custody)
-- [ ] Construct a plain CSV-timelocked single-sig output script:
-      owner spends alone after `window_days` — used identically for
-      both a bond (attester as owner) and a challenge stake
-      (challenger as owner)
-- [ ] Generate a funding address/descriptor for a new bond or
-      challenge stake, to populate `EscrowRef` (BIP380 descriptor, per
-      Decisions)
-- [ ] Verify a referenced escrow is actually funded on-chain to the
-      claimed `amount_sats` (watching for confirmation, not just an
-      unconfirmed mempool entry)
+- [x] Construct a plain CSV-timelocked single-sig output script:
+      owner spends alone after `window_days` — `internal/escrow/
+      timelock.go` `PreEscalationScript`/`SequenceForDays` (BIP68
+      time-based relative locktime, not block-count, so `window_days`
+      maps directly without a block-time assumption)
+- [x] Generate a funding address/descriptor for a new bond or
+      challenge stake, to populate `EscrowRef` — `descriptor.go`
+      `FormatPreEscalationDescriptor`/`ParsePreEscalationDescriptor`
+      (a narrow, fixed-template BIP380-shaped descriptor, not a
+      general miniscript compiler — see its own doc comment) plus
+      `timelock.go` `FundingAddress` for the actual bech32 address
+- [x] Verify a referenced escrow is actually funded on-chain to the
+      claimed `amount_sats` — `verify.go` `VerifyFunded`, against a
+      `ChainQuerier` interface. **Only the logic is done, not a real
+      backend**: no regtest/bitcoind node is reachable in this
+      environment to build and test a concrete RPC-backed
+      implementation against, so `ChainQuerier` stays an interface
+      (tested via a mock) until one is available — see Log
 
 ### Small-bond tier: cooperative escalation, mutual settlement first
-- [ ] On challenge, cooperatively construct (via PSBT) a joint output
-      with two paths: 2-of-2 mutual settlement (any split, no panel
-      needed), and a fallback spendable once `ConfirmedPanel` confirms
-      a single mutually-agreed arbiter
+- [x] Escalated-output script: 2-of-2 mutual settlement (any split, no
+      panel needed) OR a single mutually-agreed arbiter fallback —
+      `multisig.go` `SmallTierEscalatedScript`, both spending paths
+      validated against the real `txscript` consensus engine
 - [ ] Detect non-escalation: a challenge exists but no escalation
       transaction has been broadcast within a reasonable margin of
       `window_days` — surfaced as data for a verifier's own
-      reputational judgment, not enforced in-code
-- [ ] Settlement: 2-of-2 mutual-settlement spend (either side proposes
-      a split, the other co-signs); arbiter-decided spend once
-      `Resolve` reports a decision from the single confirmed arbiter
+      reputational judgment, not enforced in-code — **not yet built**
+- [ ] Cooperative PSBT construction helpers for actually building the
+      escalation/settlement transactions (this session built and
+      tested the *scripts* directly against hand-built `wire.MsgTx`
+      values, which is sufficient to validate the scripts themselves,
+      but a real caller needs PSBT-based construction/signing/
+      combining helpers around them) — **not yet built**
 
 ### Larger-bond tier: independent upfront arbiter commitments
-- [ ] Define and validate the `net.persona.core.arbiter_commitment`
-      claim_type (reuses A001's `ValidateClaimType` — no new
-      namespacing code needed), published by each side at their own
-      funding time, immutable once published
-- [ ] On challenge, cooperatively construct (via PSBT) a fresh joint
-      output naming both sides' already-committed arbiters, 2-of-2 —
-      the same cooperative-escalation shape as the small-bond tier,
-      just with the arbiter identities pre-fixed rather than
-      negotiated at escalation time, and no direct 2-of-2
-      mutual-settlement path back to the disputants themselves
-- [ ] Settlement: spend the escalated 2-of-2 output once both
-      pre-committed arbiters agree on a split
-- [ ] Tie-break: given the two appointed arbiters disagree, construct
-      (via PSBT, cooperatively between just the two arbiters) the
-      escalation transaction moving the joint output into a fresh
-      2-of-3 output naming both original arbiters plus a
-      jointly-nominated third; settle once any 2-of-3 agree
+- [x] Define and validate the `net.persona.core.arbiter_commitment`
+      claim_type — `arbiter_commitment.go`, reuses A001's
+      `ValidateClaimType`/`attestation.New`/`Verify` directly
+- [x] Escalated-output script: 2-of-2 between the two independently
+      pre-committed arbiters, no path back to the disputants
+      themselves — `multisig.go` `LargeTierEscalatedScript`, validated
+      (both-sign succeeds, either-alone fails) against the engine
+- [x] Tie-break script: 2-of-3 naming both original arbiters plus a
+      jointly-nominated third — `multisig.go` `TieBreakScript`,
+      validated for all three possible 2-of-3 signer combinations
+- [ ] Cooperative PSBT construction helpers for the escalation and
+      tie-break transactions themselves — same gap as the small-bond
+      tier, **not yet built**
 
 ### Settlement (shared)
-- [ ] Given `dispute.IsSelfReleased` = true (never escalated, either
-      tier), the pre-escalation single-sig spend is an ordinary
-      timelocked self-spend — no new code beyond the shared
-      pre-escalation output itself
+- [x] `dispute.IsSelfReleased` = true (never escalated, either tier):
+      the pre-escalation single-sig spend is an ordinary timelocked
+      self-spend — no new code needed beyond `PreEscalationScript`
+      itself, confirmed by `TestPreEscalationScript_OwnerSpendsAfterWindow`
 
 ### Tests
-- [ ] Pre-escalation output: owner-alone spend succeeds only after
-      `window_days`, fails before it — unit tests against `btcd`'s
-      regtest/simnet tooling (no real funds)
-- [ ] Small-bond tier: 2-of-2 mutual settlement succeeds with both
-      signatures at any time; single-arbiter fallback succeeds only
-      once `ConfirmedPanel`/`Resolve` actually agree; a non-cooperating
-      party blocks escalation entirely (confirms the residual risk is
-      real and structural, not just theoretical)
-- [ ] Larger-bond tier: `arbiter_commitment` claim construction/
-      verification round-trip; the escalated 2-of-2 output spends only
-      with *both* pre-committed arbiters' signatures — a lone appointed
-      arbiter cannot move it alone (confirms the collusion concern the
-      corrected design exists to close); a non-cooperating disputant
-      blocks escalation entirely, same residual as the small-bond tier
-- [ ] Larger-bond tier tie-break: the two appointed arbiters
-      disagreeing blocks direct settlement of the escalated output; the
-      further escalation to a 2-of-3 with a third arbiter succeeds only
-      with both original arbiters' cooperation; once escalated, any 2
-      of the 3 (in any combination) can settle — confirming no fourth
-      arbiter is ever structurally needed; the two arbiters refusing to
-      escalate at all leaves each side's pre-escalation timelock
-      fallback as the only path
-- [ ] Funding-verification tests against a regtest node: unfunded,
-      underfunded, and correctly-funded cases
+- [x] Pre-escalation output: owner-alone spend succeeds only after
+      `window_days`, fails before it, fails for a non-owner signer —
+      `TestPreEscalationScript_*`, run against the real `txscript`
+      engine (no live node needed — CSV compares the script's required
+      sequence directly against the spending input's own declared
+      value, so no simulated passage of time is required either)
+- [x] Small-bond tier: mutual settlement succeeds with both
+      signatures; arbiter-fallback path succeeds with just the
+      arbiter's signature; the arbiter *alone* cannot satisfy the
+      mutual-settlement branch — `TestSmallTierEscalatedScript_*`
+- [x] Larger-bond tier: the escalated 2-of-2 output spends only with
+      *both* pre-committed arbiters' signatures, confirming the
+      collusion concern the corrected design exists to close —
+      `TestLargeTierEscalatedScript_BothArbitersRequired`
+- [x] Larger-bond tier tie-break: any 2 of the 3 (in any combination)
+      settle the tie-break output — `TestTieBreakScript_AnyTwoOfThreeSettle`
+- [x] `arbiter_commitment` claim construction/verification round-trip
+      and malformed-value rejection — `TestArbiterCommitmentClaim*`
+- [x] `VerifyFunded` logic: funded/unfunded/underfunded/wrong-script/
+      query-error cases, against a mock `ChainQuerier` —
+      `TestVerifyFunded*`
+- [x] Descriptor format/parse round-trip and malformed-value rejection
+      — `TestDescriptorRoundTrip`, `TestParsePreEscalationDescriptorRejectsMalformed`
+- [ ] Non-cooperation tests (a party refusing to escalate blocks the
+      process) — **not yet built**, depends on the still-missing PSBT
+      construction helpers to have something to *not* cooperate with
+- [ ] Funding-verification tests against a real regtest node —
+      **blocked**, no node reachable in this environment
 
 ### Before mainnet
 - [ ] Independent security review of every script variant across both
       tiers (not self-certified) — hard gate, not a Task to check off
-      solo
+      solo; **not reached — most of the surrounding plumbing above is
+      still unbuilt**
 
 ## Log
 
@@ -448,3 +460,41 @@ cooperation ever required," which was the overclaim. Tasks and Tests
 updated to match; the shared pre-escalation output section already
 described the correct (single-path, identical-across-tiers) script and
 needed no change.
+
+2026-09-29 — Started implementation. New `internal/escrow` package:
+`timelock.go` (BIP68 time-based `SequenceForDays`, `PreEscalationScript`,
+`WitnessScriptHash`, `FundingAddress`), `multisig.go`
+(`MultisigScript`, `SmallTierEscalatedScript`, `LargeTierEscalatedScript`,
+`TieBreakScript`), `descriptor.go` (the narrow BIP380-shaped `EscrowRef`
+format/parse this package's own fixed script template supports, not a
+general descriptor engine), `verify.go` (`VerifyFunded` against a
+`ChainQuerier` interface), `arbiter_commitment.go` (the new claim type
+the corrected larger-bond design needs). Every script was validated
+by actually executing it against `btcd`'s real consensus `txscript`
+engine — the same one `btcd` uses to test its own opcodes — not just
+checked for "builds without error": each spending path was signed and
+run through `vm.Execute()`, and each *invalid* spend (wrong signer,
+too early, only one of two required arbiters, arbiter alone
+attempting the mutual-settlement branch) was confirmed to actually
+fail. CSV timelock testing needed no live node or simulated passage of
+time — BIP68's relative-locktime check compares the script's required
+sequence directly against the spending input's own declared sequence
+value, which a test can just set directly. 24 new tests, all passing;
+full repo build/vet/test clean (104 tests total, `go mod tidy` added
+only `btcd`/`btcutil`/`chaincfg`/`btclog`, no toolchain bump).
+
+**Deliberately not marked DONE — substantial work remains**, listed
+precisely in Tasks above rather than glossed over: (1) cooperative
+PSBT-based transaction construction/signing/combining helpers a real
+caller would use — this session validated the *scripts* directly
+against hand-built transactions, which is sufficient to prove the
+scripts themselves are correct, but not the same as a usable
+construction API; (2) the non-escalation detection task; (3) a
+concrete `ChainQuerier` implementation against a real node — no
+regtest/bitcoind is reachable in this environment, so only the
+interface and its logic (via a mock) could be tested; (4) the
+mainnet-gating independent security review, not reached since the
+surrounding plumbing isn't built yet. This is a large, multi-part,
+explicitly fund-loss-risk action — treating "the script logic is
+real and consensus-validated" as a legitimate, substantial slice
+rather than claiming the whole action is finished.

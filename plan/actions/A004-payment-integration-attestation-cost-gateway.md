@@ -1,7 +1,7 @@
 ---
 id: A004
 title: Payment integration — attestation-cost gateway (L402/Aperture)
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-29
@@ -73,6 +73,13 @@ Builds directly on:
   hold state: the receipt is cryptographically tied to *this specific
   claim's content*, so it can't be replayed against a different claim,
   without needing any gateway-side request/nonce bookkeeping.
+  **Refined at implementation time**: each field is length-prefixed
+  before hashing (`len(field):field|...`), not simply joined with a
+  bare separator — otherwise two different (attester, claim_type)
+  pairs whose concatenated bytes happen to collide at a field boundary
+  could hash identically (e.g. attester `"ab"`+type `"c"` vs. attester
+  `"a"`+type `"bc"`). A real hash-hygiene detail the Decisions section
+  glossed over, not a design change.
 - **Receipt is itself a small, gateway-signed struct, not a Nostr
   event.** `{content_hash, gateway_pubkey, issued_at, signature}`,
   Schnorr-signed with the gateway operator's own Nostr private key
@@ -115,59 +122,92 @@ Builds directly on:
   stake instead, per D001) before weighting the claim is exactly the
   per-verifier trust decision D001 describes, not something baked into
   the shared `Verify` path every caller uses.
+- **Implemented as a `PendingClaim` type in the new `internal/payment`
+  package, not literally as an `attestation.New` extension.** `Verify`
+  and the tags convention are still reused directly, but embedding a
+  tag requires it to exist *before* signing, and the payment package
+  already imports `attestation` (for `Kind`/`ValidateClaimType`) — so
+  `attestation` importing back would be a cycle. `PendingClaim` fixes
+  the claim's content and timestamp once, exposes `Hash()` for
+  requesting a receipt, and `Finalize(attester, summary, *Receipt)`
+  signs the actual event at that same fixed timestamp — this is what
+  actually keeps the receipt's hash and the final event's timestamp
+  consistent, a real correctness requirement the Decisions section
+  named implicitly ("computed identically... before publishing... after
+  fetching") without spelling out how a caller keeps that timestamp
+  from drifting between the two steps.
 
 ## Tasks
 
 ### Receipt type and verification
-- [ ] Define the `Receipt` struct (`content_hash`, `gateway_pubkey`,
-      `issued_at`, `signature`) and its base64-JSON tag encoding
-- [ ] `ContentHash(claim)` — deterministic hash over
+- [x] Define the `Receipt` struct (`content_hash`, `gateway_pubkey`,
+      `issued_at`, `signature`) and its base64-JSON tag encoding —
+      `internal/payment/receipt.go`, `EncodeReceipt`/`DecodeReceipt`
+- [x] `ContentHash(...)` — deterministic, length-prefixed hash over
       attester/subject/claim_type/claim_value/timestamp, computable
-      both before publishing (by the attester) and after fetching (by
-      a verifier)
-- [ ] `SignReceipt(gateway identity.Persona, hash) (Receipt, error)`
-- [ ] `VerifyReceipt(receipt, expectedHash) error` — signature check
+      both before publishing (by the attester, via `PendingClaim.Hash`)
+      and after fetching (by a verifier, via `ClaimContentHash`)
+- [x] `SignReceipt(gateway identity.Persona, hash) (Receipt, error)`
+- [x] `VerifyReceipt(receipt, expectedHash) error` — signature check
       plus hash match; does not decide whether the caller *trusts*
       `receipt.GatewayPubkey`, only whether the receipt is genuine
 
 ### Attestation event integration
-- [ ] Extend `attestation.New` (or add a variant) to accept an
-      optional `*Receipt` and embed it as the `payment_receipt` tag
-- [ ] Extract a `payment_receipt` tag back into a `*Receipt` alongside
-      the existing `Verify` path, without making its presence
-      mandatory for a claim to verify structurally
+- [x] `PendingClaim`/`Finalize` (not a literal `attestation.New`
+      extension — see Decisions) embeds an optional `*Receipt` as the
+      `payment_receipt` tag — `internal/payment/event.go`
+- [x] `ExtractReceipt` reads a `payment_receipt` tag back into a
+      `Receipt`, `ok=false` (no error) when absent — receipt presence
+      is opt-in, not required for `attestation.Verify` to succeed
 
 ### Reference gateway backend
-- [ ] Minimal `POST /receipt` HTTP handler: read a content-hash hex
-      body, sign it with the gateway's own key, return the encoded
-      `Receipt` — no payment logic, matching D005's paid-listener shape
-- [ ] Document the Aperture registration this expects (one fixed-price
-      service pointing at this handler), referencing D005's own
+- [x] Minimal `POST /receipt` HTTP handler: read a content-hash hex
+      body, sign it with the gateway's own key, return the JSON
+      `Receipt` — no payment logic — `internal/payment/server.go`
+      `NewGatewayHandler`
+- [x] Documented the Aperture registration this expects directly in
+      `NewGatewayHandler`'s doc comment, referencing D005's own
       `aperturecli services create` shape rather than re-deriving it
 
 ### L402 client plumbing
-- [ ] Parse a `402`/`WWW-Authenticate: LSAT ...` challenge into
-      macaroon + invoice
-- [ ] Build the retry request's `Authorization: LSAT <macaroon>:
-      <preimage>` header, given an already-obtained preimage
-- [ ] Short reuse-vs-build note in the Log once a concrete Go L402
-      client library choice is actually made (deferred, not decided
-      here)
+- [x] Parse a `402`/`WWW-Authenticate: LSAT ...` challenge into
+      macaroon + invoice — `internal/payment/l402.go`
+      `ParseChallenge`/`ChallengeFromResponse`
+- [x] Build the retry request's `Authorization: LSAT <macaroon>:
+      <preimage>` header, given an already-obtained preimage —
+      `AuthorizationHeader`
+- [x] Reuse-vs-build note: no Go L402 client library was actually
+      needed for this action's scope — parsing a standard HTTP
+      402/`WWW-Authenticate` response and formatting an `Authorization`
+      header requires nothing beyond the standard library
+      (`net/http`, `regexp`); the harder half (talking to a Lightning
+      wallet to actually pay an invoice) remains genuinely deferred and
+      still has no library chosen, since it's still out of this
+      action's scope entirely
 
 ### Tests
-- [ ] `ContentHash` is deterministic and order-sensitive (changing any
-      one field changes the hash)
-- [ ] Sign/verify receipt round trip; tampered signature or mismatched
-      hash rejected
-- [ ] Attestation event with an embedded receipt round-trips through
-      `New`/`Verify`/extraction correctly
-- [ ] An attestation event with *no* receipt tag still verifies
-      structurally (receipt is opt-in, not required by `Verify`)
-- [ ] 402-challenge parsing against a synthetic `WWW-Authenticate`
-      header; malformed challenge rejected with a clear error
-- [ ] Reference gateway handler: valid hash → signed receipt whose
+- [x] `ContentHash` is deterministic and order-sensitive —
+      `TestContentHashDeterministicAndOrderSensitive`
+- [x] Sign/verify receipt round trip; tampered signature or mismatched
+      hash rejected — `TestSignVerifyReceiptRoundTrip`,
+      `TestVerifyReceiptRejectsTamperedSignature`,
+      `TestVerifyReceiptRejectsMismatchedHash`
+- [x] Attestation event with an embedded receipt round-trips through
+      `Finalize`/`Verify`/`ExtractReceipt` correctly —
+      `TestFinalizeWithReceiptRoundTrip` (also checks the verifier's
+      independently recomputed hash still matches the receipt)
+- [x] An attestation event with *no* receipt tag still verifies
+      structurally — `TestFinalizeWithoutReceiptStillVerifies`
+- [x] 402-challenge parsing against a synthetic `WWW-Authenticate`
+      header; malformed challenge rejected with a clear error —
+      `TestParseChallenge`, `TestParseChallengeRejectsMalformed`,
+      `TestChallengeFromResponse`,
+      `TestChallengeFromResponseRejectsNon402`
+- [x] Reference gateway handler: valid hash → signed receipt whose
       `VerifyReceipt` passes; malformed body → clear error, no partial
-      receipt issued
+      receipt issued — `TestGatewayHandlerSignsValidHash`,
+      `TestGatewayHandlerRejectsMalformedBody`,
+      `TestGatewayHandlerRejectsWrongMethod`
 
 ## Log
 
@@ -185,3 +225,39 @@ everywhere else. Left one real implementation decision open rather
 than guessing: which Go L402 client library to build the payment-retry
 plumbing on, since none has been evaluated yet — flagged for a short
 reuse-vs-build pass at implementation time, not resolved here.
+
+2026-09-29 — Implemented. New `internal/payment` package, four files:
+`receipt.go` (`Receipt` type, `ContentHash`/`SignReceipt`/
+`VerifyReceipt`, base64-JSON tag encoding), `event.go` (`PendingClaim`/
+`Finalize`/`ExtractReceipt` — the attestation-event integration),
+`server.go` (`NewGatewayHandler`, the reference gateway backend), and
+`l402.go` (challenge parsing, authorization header building). Uses
+`btcec/schnorr` directly for receipt signing — the exact same
+primitive `go-nostr`'s own `Event.Sign` already uses internally, so no
+new signature scheme and no new dependency (it was already an indirect
+one; `go mod tidy` just promoted it to direct).
+
+Two things worth flagging as real corrections, not just style choices:
+1. **Event integration couldn't literally extend `attestation.New`**
+   as the Decisions section originally sketched — `internal/payment`
+   already imports `internal/attestation` (for `Kind`/
+   `ValidateClaimType`), so the reverse import would cycle. Built
+   `PendingClaim`/`Finalize` instead: fixes a claim's content and
+   timestamp once, so the hash a gateway signs and the final event's
+   own timestamp can't drift apart between the two round-trip steps —
+   a real correctness requirement the original Decisions text implied
+   ("computed identically... before... after") without actually
+   solving how a caller keeps the two in sync.
+2. **`ContentHash` length-prefixes each field before hashing**, not a
+   bare `|`-joined concatenation as first sketched — closes a
+   field-boundary collision (two different claims whose bytes happen
+   to concatenate identically) that a plain join would have left open.
+
+The L402 client-library question flagged as open turned out to need no
+library at all for this action's actual scope: parsing a 402/
+`WWW-Authenticate` response and building an `Authorization` header is
+plain `net/http`/`regexp`, nothing more. Paying an invoice (the
+genuinely deferred half) still has no library chosen, since it's still
+out of scope entirely. All tests pass (16 new tests), full repo
+build/vet/test clean. Everything this action scoped is done — moved to
+DONE.

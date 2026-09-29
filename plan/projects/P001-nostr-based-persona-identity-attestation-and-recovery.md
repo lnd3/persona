@@ -200,6 +200,18 @@ in [[D001]].
       the minimal gateway backend, not to running Aperture, executing
       a Lightning payment, or choosing which gateways a verifier
       trusts
+- [x] Implement A004 — done 2026-09-29, moved to DONE. New
+      `internal/payment` package: `Receipt` type + sign/verify (via
+      `btcec/schnorr`, the same primitive go-nostr's own event signing
+      already uses — no new dependency), `PendingClaim`/`Finalize` for
+      embedding an optional receipt in an attestation event without a
+      package import cycle, a reference `POST /receipt` gateway
+      handler, and 402-challenge/`Authorization`-header L402 client
+      plumbing. The L402-client-library question flagged as open
+      turned out to need no library at all for this action's actual
+      scope (challenge parsing is plain `net/http`); paying an invoice
+      remains genuinely out of scope and still has none chosen. 16 new
+      tests, full repo build/vet/test clean.
 - [x] File [[A005]]: bonding/slashing dispute resolution (dispute type
       1 only, per D001's own scoping) — done 2026-09-29, protocol/
       decision layer only (claim types, panel confirmation, verdict
@@ -435,3 +447,25 @@ containing claim types (`recovery_guardian`/`recovery_confirm`) —
 fixed to accept both, a fix that affects every future claim_type
 choice, not just this action's two. All tests pass, full repo
 build/vet/test clean.
+
+2026-09-29 — Implemented A004, moved to DONE. New `internal/payment`
+package: `Receipt` sign/verify via `btcec/schnorr` (already an
+indirect dependency, just promoted to direct — no new signature
+scheme), `PendingClaim`/`Finalize` embedding an optional receipt tag
+into an attestation event, a reference `POST /receipt` gateway
+handler, and 402-challenge/`Authorization`-header L402 client
+plumbing. Two things corrected from the original plan: the event
+integration couldn't literally extend `attestation.New` (the payment
+package already imports attestation, so the reverse import would
+cycle) — `PendingClaim` fixes a claim's content/timestamp once so the
+receipt's hash and the final event's timestamp can't drift apart
+between requesting payment and signing; and `ContentHash` was changed
+to length-prefix each field before hashing, closing a field-boundary
+collision a bare `|`-join would have left open. The L402-client-
+library choice flagged as open in A004's filing turned out to be moot
+for this action's actual scope — challenge parsing needs nothing
+beyond `net/http`/`regexp`; paying an invoice remains genuinely
+deferred with no library chosen. 16 new tests, full repo
+build/vet/test clean. **A001-A004 are now all DONE and implemented —
+only A005 (bonding/slashing) remains to implement**, plus its own
+deferred Bitcoin-escrow follow-up once reached.

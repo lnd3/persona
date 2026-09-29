@@ -187,7 +187,17 @@ in [[D001]].
       the minimal gateway backend, not to running Aperture, executing
       a Lightning payment, or choosing which gateways a verifier
       trusts
-- [ ] File the remaining action: bonding/slashing still unfiled
+- [x] File [[A005]]: bonding/slashing dispute resolution (dispute type
+      1 only, per D001's own scoping) — done 2026-09-29, protocol/
+      decision layer only (claim types, panel confirmation, verdict
+      resolution, self-release timing); actual Bitcoin escrow script
+      construction/funding/verification deliberately left to a
+      separate, not-yet-filed follow-up action
+- [x] All four of D001's implementation pieces (identity/attestation,
+      trust, recovery, payment, bonding/slashing) now have an action
+      filed. Remaining work is implementing A003/A004/A005 and, once
+      A005's escrow layer needs it, filing the Bitcoin-escrow
+      follow-up action.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -378,3 +388,19 @@ verifier chooses to require them — kept orthogonal to
 `attestation.Verify` itself. Left the concrete Go L402-client library
 choice genuinely open for a reuse-vs-build pass at implementation
 time, same honesty A001 applied to its own `kind`-number research.
+
+2026-09-29 — Filed [[A005]]: bonding/slashing dispute resolution,
+scoped exactly to dispute type 1 as D001 itself scopes it. Split the
+same way A004 split payment integration: this action owns the
+protocol/decision layer (four new claim types — `bond`,
+`dispute_challenge`, `arbiter_panel`, `dispute_verdict` — panel
+confirmation via matching two-sided attestations, majority-vote
+verdict resolution, self-release timing arithmetic), leaving actual
+Bitcoin escrow script construction/funding/verification to a separate,
+not-yet-filed follow-up — a fund-loss-risk piece of work deserving its
+own focused action. Two judgment calls made explicitly: panel size
+must be 1 or odd-≥3 (D001 never addresses even-panel ties), and a
+14-day self-release window as a revisitable per-bond default. **All
+four of D001's implementation pieces now have an action filed** —
+A001 (DONE), A002 (DONE), A003, A004, A005 (all PLANNING, not yet
+implemented).

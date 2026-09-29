@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-29 22:02:09 UTC*
+*Last updated: 2026-09-29 22:12:22 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -39,3 +39,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A003](actions/A003-recovery-guardian-attestation-and-sskr-key-splitting.md) | Recovery — guardian attestation and SSKR key splitting | DONE | D001 | TBD |
 | [A004](actions/A004-payment-integration-attestation-cost-gateway.md) | Payment integration — attestation-cost gateway (L402/Aperture) | DONE | D001 | TBD |
 | [A005](actions/A005-bonding-slashing-dispute-resolution.md) | Bonding/slashing dispute resolution (dispute type 1 only) | DONE | D001 | TBD |
+| [A006](actions/A006-bitcoin-escrow-settlement.md) | Bitcoin escrow settlement (script construction, funding, on-chain verification) | PLANNING | D001 | TBD |

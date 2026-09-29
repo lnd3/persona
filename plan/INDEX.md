@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-30 01:09:07 UTC*
+*Last updated: 2026-09-30 01:26:29 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -40,3 +40,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A004](actions/A004-payment-integration-attestation-cost-gateway.md) | Payment integration — attestation-cost gateway (L402/Aperture) | DONE | D001 | TBD |
 | [A005](actions/A005-bonding-slashing-dispute-resolution.md) | Bonding/slashing dispute resolution (dispute type 1 only) | DONE | D001 | TBD |
 | [A006](actions/A006-bitcoin-escrow-settlement.md) | Bitcoin escrow settlement (script construction, funding, on-chain verification) | PLANNING | D001 | TBD |
+| [A007](actions/A007-bitcoin-escrow-security-review.md) | Independent security review of the Bitcoin escrow scripts | PLANNING | D001 | TBD |

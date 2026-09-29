@@ -244,17 +244,25 @@ in [[D001]].
       mediator vs. voluntary escalation into joint custody) as open
       questions rather than guessing an answer while filing; that
       decision is A006's own first task, before any script code.
-- [ ] Implement A006 — started 2026-09-29, **not yet DONE** (large,
-      multi-part, explicitly fund-loss-risk action). New
-      `internal/escrow` package: pre-escalation CSV-timelock script,
-      small/larger-tier escalated scripts, tie-break script, the new
-      `arbiter_commitment` claim type, descriptor format, funding
-      verification logic — every script validated against `btcd`'s
-      real consensus engine, not just checked to build. Still missing:
-      PSBT-based cooperative transaction construction helpers, a real
-      `ChainQuerier` node backend (no regtest node reachable in this
-      environment), non-escalation detection, and the mainnet-gating
-      security review.
+- [ ] Implement A006 — started 2026-09-29, redesigned 2026-09-30,
+      **not yet DONE** (large, multi-part, explicitly fund-loss-risk
+      action). Current `internal/escrow` package: `UniversalScript`/
+      `ReinforcedScript` (single, static, upfront-configured scripts,
+      no escalation transaction), the standing `arbiter_commitment`
+      claim type, PSBT settlement helpers (`settle.go`), funding
+      verification logic — every script and full PSBT round trip
+      validated against `btcd`'s real consensus engine. Still missing:
+      a real `ChainQuerier` node backend (no regtest node reachable in
+      this environment) and the mainnet-gating security review, now
+      tracked as its own action, [[A007]].
+- [x] File [[A007]]: independent security review of A006's Bitcoin
+      escrow scripts — done 2026-09-30, tracked as its own action
+      rather than an aspiration inside A006's task list. Scoped to
+      arranging and acting on the review, not performing it (an
+      AI-assisted self-review isn't independent) or building A006's
+      still-missing pieces. Regtest/testnet exercise is this action's
+      own prerequisite, ahead of the review itself — cheaper bugs
+      should be caught cheaply before spending a reviewer's time.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -628,3 +636,19 @@ build→sign→finalize→extract→re-validate round trips pass against the
 real consensus engine. 110 tests total, full repo clean. Still not
 DONE: a real `ChainQuerier` backend and the mainnet security-review
 gate.
+
+2026-09-30 — Filed [[A007]]: the mainnet security-review gate A006's
+own Tasks list has always carried, tracked as its own action rather
+than left as an aspiration inside A006's task list. Deliberately
+scoped to arranging and acting on an independent review, not
+performing one — the same logic that makes this action necessary at
+all (an AI-assisted self-review isn't independent) also means this
+action can't substitute for the real thing. Decided regtest/testnet
+exercise (actually funding, spending, and confirming each script
+branch on a real node) is this action's own prerequisite, ahead of
+the reviewer's time — no regtest node is reachable in this environment
+yet, so this blocks on that becoming available. Stated concrete pass
+criteria rather than "looks safe": no valid spend without a real
+matching signature, no branch satisfiable with fewer signatures than
+designed, no fallback spend before its CSV window has genuinely
+elapsed.

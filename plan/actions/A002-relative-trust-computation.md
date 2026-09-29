@@ -1,11 +1,11 @@
 ---
 id: A002
 title: Relative trust computation (web-of-trust weighting)
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-09-29
 ---
 
 ## Context
@@ -65,34 +65,49 @@ still-unfiled or in-design piece of D001, not folded in here):
 ## Tasks
 
 ### Trust graph
-- [ ] Define the `net.persona.core.trust` edge claim_type (reuses
+- [x] Define the `net.persona.core.trust` edge claim_type (reuses
       A001's namespacing enforcement — no new validation code needed)
-- [ ] Fetch trust-edge events for a given pubkey (reuses
-      `attestation.FetchForSubject`-style querying, but keyed by
-      attester, not subject — trust edges are queried outward from a
-      person, not looked up by who they're about)
-- [ ] Bounded BFS/graph walk from a seed set, computing per-pubkey
+      — `internal/trust/trust.go` (`EdgeClaimType`)
+- [x] Fetch trust-edge events for a given pubkey, keyed by attester,
+      not subject — `FetchTrustEdges`. Filters relay-side only on
+      `Kind`/`Authors`; `claim_type` is filtered client-side in
+      `trustedTo`, since NIP-01 only guarantees single-letter tags are
+      relay-indexed and a live round trip against `nos.lol` came back
+      empty until this was corrected (see Log)
+- [x] Bounded BFS/graph walk from a seed set, computing per-pubkey
       weight (depth ≤ 3, weight halves per hop, best-path-wins on
-      cycles/multiple paths)
+      cycles/multiple paths) — `Compute`, parameterized over an
+      `EdgeFetcher` so the walk itself is testable offline against a
+      synthetic graph; `RelayEdgeFetcher` is the real network-backed
+      instance
 
 ### Scoring
-- [ ] Given a subject's fetched attestations (via A001's
+- [x] Given a subject's fetched attestations (via A001's
       `FetchForSubject`) and a computed trust-weight map, score each
       claim by its attester's weight (0 if attester isn't in the
-      verifier's reachable set at all)
-- [ ] Group/rank scored claims per `claim_type`, so a caller can ask
+      verifier's reachable set at all) — `Score`
+- [x] Group/rank scored claims per `claim_type`, so a caller can ask
       "what's this subject's best-supported claim for X" rather than
-      getting an undifferentiated list
+      getting an undifferentiated list — `Score`'s
+      `map[string][]ScoredClaim` return, sorted descending by weight
+      within each group
 
 ### Tests
-- [ ] Direct trust (depth 1) scores 1.0
-- [ ] Transitive trust decays correctly at depth 2/3
-- [ ] Depth-4+ trust is unreachable (weight 0 / excluded)
-- [ ] A cycle in the trust graph doesn't loop forever or inflate weight
-- [ ] An attester outside the reachable set scores 0, is excluded from
-      ranked results
-- [ ] Multiple paths to the same attester use the best (highest-weight)
-      path, not a sum
+- [x] Direct trust (depth 1) scores 1.0 — `TestComputeDirectTrust`
+- [x] Transitive trust decays correctly at depth 2/3 —
+      `TestComputeTransitiveDecay`
+- [x] Depth-4+ trust is unreachable (weight 0 / excluded) —
+      `TestComputeTransitiveDecay`
+- [x] A cycle in the trust graph doesn't loop forever or inflate weight
+      — `TestComputeCycleDoesNotLoopOrInflate` (watchdog-timed)
+- [x] An attester outside the reachable set scores 0, is excluded from
+      ranked results — `TestComputeOutsideSeedSetUnreachable`,
+      `TestScoreExcludesUnreachableAttester`
+- [x] Multiple paths to the same attester use the best (highest-weight)
+      path, not a sum — `TestComputeMultiPathUsesBestNotSum`
+- [x] Live round trip: publish a real trust-edge attestation and fetch
+      it back via `RelayEdgeFetcher` against a real public relay —
+      `TestFetchTrustEdgesRoundTrip` (skips gracefully if unreachable)
 
 ## Log
 
@@ -103,3 +118,21 @@ propagation, caller-supplied seed set, best-path (not summed) scoring.
 Explicitly scoped out payment-receipt and bond/dispute status as
 additional trust signals — both depend on separate, not-yet-built
 actions.
+
+2026-09-29 — Implemented. `internal/trust/trust.go`: `Compute` walks
+the graph via an injected `EdgeFetcher` interface rather than talking
+to a relay directly, so the depth/decay/cycle/best-path logic has a
+full offline unit-test suite against synthetic graphs, with only the
+actual fetch (`RelayEdgeFetcher`/`FetchTrustEdges`) hitting the
+network. Caught and fixed one real bug this way: the first cut of
+`FetchTrustEdges` filtered on the `claim_type` tag server-side, which
+came back empty against a live `nos.lol` query — NIP-01 only
+guarantees single-letter tags (like `p`) are relay-indexed, so a
+multi-character tag like `claim_type` isn't reliably queryable
+server-side across public relays. Fixed by filtering `claim_type`
+client-side (in `trustedTo`) after an unfiltered `Kind`+`Authors`
+query, the same shape A001's own `p`-tag filtering already relied on
+correctly. Live round trip (publish a trust-edge attestation, fetch it
+back via `RelayEdgeFetcher`) passes against `wss://nos.lol`; all
+offline algorithmic tests pass. Everything this action scoped is
+done — moved to DONE.

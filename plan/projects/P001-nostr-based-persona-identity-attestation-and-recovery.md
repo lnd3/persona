@@ -181,8 +181,13 @@ in [[D001]].
       split/combine, guardian designation, and recovery confirmation
       primitives only (guardian-contact workflow and verifier-side
       recovery policy explicitly deferred)
-- [ ] File the remaining actions: payment integration and
-      bonding/slashing still remain unfiled
+- [x] File [[A004]]: payment integration (attestation-cost gateway,
+      L402/Aperture) — done 2026-09-29, reuses `cinder`'s D005
+      reference architecture; scoped to receipt mint/embed/verify and
+      the minimal gateway backend, not to running Aperture, executing
+      a Lightning payment, or choosing which gateways a verifier
+      trusts
+- [ ] File the remaining action: bonding/slashing still unfiled
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -361,3 +366,15 @@ attempts; NIP-44-encrypted DM events as the only channel shares travel
 over. Guardian-contact workflow and verifier-side recovery policy
 explicitly deferred, same posture as A002 took toward trust-weighting
 policy.
+
+2026-09-29 — Filed [[A004]]: payment integration, reusing `cinder`'s
+D005 reference architecture (Aperture-fronted gateway, discrete
+pricing tier, metered prepaid-bundle anti-replay) rather than
+inventing a second L402 pattern. Made the choices D001 left as
+architecture-only: receipts bind to a deterministic hash of a claim's
+own content fields (not the final event id, which would be circular),
+travel as one opaque base64-JSON tag, and are checked only if a given
+verifier chooses to require them — kept orthogonal to
+`attestation.Verify` itself. Left the concrete Go L402-client library
+choice genuinely open for a reuse-vs-build pass at implementation
+time, same honesty A001 applied to its own `kind`-number research.

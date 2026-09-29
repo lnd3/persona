@@ -22,15 +22,13 @@ anything else built in this project (identity, attestation, trust,
 recovery, payment receipts) — none of which can lose anyone's money if
 the code has a bug, only produce a wrong *opinion*.
 
-**This action starts from a harder position than A001-A005 did**:
+**This action started from a harder position than A001-A005 did**:
 those actions each had a design (D001) that named the mechanism and
 left only implementation-level choices open (which library, which
 kind number, which claim_value shape). This one's starting design —
-"a simple n-of-m multisig" — turns out, on closer inspection while
-filing this action, to have a real unresolved structural problem
-underneath it, not just missing implementation detail. See Open
-Design Questions below before assuming this is a straightforward
-build.
+"a simple n-of-m multisig" — turned out, on closer inspection while
+filing this action, to have a real structural problem underneath it:
+resolved below (2026-09-29, before any script code), not left open.
 
 **Builds on**: [[A005]]'s `internal/dispute` (`BondInfo`/
 `ChallengeInfo`.`EscrowRef` — this action is what actually makes
@@ -51,47 +49,69 @@ not reimplement).
   deployment/product concern, same posture [[A004]] took toward
   Lightning wallets
 
-## Open Design Questions (not yet resolved — read before implementing)
+## Decisions made here (not in D001 — concrete choices this action owns)
 
-Filing this action surfaced a real structural tension D001's "simple
-n-of-m multisig" framing glossed over, honestly flagged here rather
-than papered over with a premature Decision:
-
-- **The arbiter panel is chosen *after* a dispute arises (per D001 and
-  A005's `ConfirmedPanel`), but a spendable Bitcoin script has to be
-  constructed *before* anyone knows who will spend from it.** A bond
-  is created and sits on-chain, potentially for a long time, before
-  any challenge exists — so the escrow output funded at bond-creation
-  time cannot name arbiter keys that don't exist yet. Two real
-  directions, neither obviously right:
-  1. **Pre-designated mediator, chosen at bond-creation time** — the
-     well-trodden pattern real Bitcoin escrow services already use
-     (2-of-3: payer, payee, a pre-agreed mediator key), simple and
-     provably spendable from day one. **Tension**: this contradicts
-     D001/A005's own "arbiter choice is per-dispute, jointly selected
-     by attester and challenger" decision — the mediator would have to
-     be chosen unilaterally by the attester alone, before a challenger
-     even exists to jointly agree on anyone.
-  2. **Voluntary escalation into joint custody upon challenge** — the
-     bond starts as a plain timelocked output (attester spends alone
-     after the window, no multisig needed since there's no
-     counterparty yet); when challenged, the attester must
-     cooperatively move their bonded funds into a new, freshly
-     constructed n-of-m output naming the just-confirmed panel,
-     *before* their original timelock expires. **Tension**: this is a
-     required voluntary action, not something a script alone enforces
-     — an attester who refuses to cooperate could simply wait out the
-     original timelock and reclaim their bond unilaterally, defeating
-     the entire point of bonding. Would need a real consequence for
-     non-cooperation (e.g. verifiers treating an unescalated,
-     challenged bond as automatic forfeit — itself a new policy
-     decision, not free).
-  - **Not resolved here.** Whichever direction is chosen changes what
-    "funding" and "the escrow script" even mean for this action's
-    other tasks — this needs its own focused decision (with the same
-    honesty D001 applies to its other hard tradeoffs) before any
-    script-construction code is written, not assumed away by filing
-    this action.
+- **Voluntary escalation into joint custody upon challenge, not a
+  pre-designated mediator — decided 2026-09-29.** Filing this action
+  surfaced a real structural tension D001's "simple n-of-m multisig"
+  framing glossed over: the arbiter panel is chosen *after* a dispute
+  arises (per D001 and A005's `ConfirmedPanel`), but a spendable
+  Bitcoin script has to be constructed *before* anyone knows who will
+  spend from it — a bond sits on-chain, potentially for a long time,
+  before any challenge (and therefore any panel) exists.
+  - **The pre-designated-mediator alternative was rejected, not just
+    set aside.** The well-trodden real-world pattern (2-of-3: payer,
+    payee, a pre-agreed mediator key) requires naming the mediator at
+    bond-creation time — but the challenger doesn't exist yet then, so
+    the attester alone would be choosing who gets to judge disputes
+    against themselves. That's not a minor limitation to route around;
+    it's a direct regression against D001's own founding principle
+    (never let one party unilaterally pick the authority that
+    adjudicates them) — the exact single-point-of-capture failure the
+    whole relative-trust model exists to avoid. Rejected on principle,
+    not just on inconvenience.
+  - **How escalation actually works**: a bond starts as a plain
+    timelocked output — attester spends alone after `window_days`, no
+    multisig at all, since there's no counterparty yet. Symmetrically,
+    a challenger's stake is *also* just their own timelocked
+    self-custody output from the moment they challenge — not
+    automatically joint with anything. Only once a panel is
+    **confirmed** (`ConfirmedPanel`, both sides agreeing) do the
+    attester and challenger cooperatively construct and fund a new
+    n-of-m output naming that panel, moving both the bond and the
+    stake into it before the attester's original timelock expires.
+  - **This meaningfully improves the risk profile of the whole
+    action, not just resolves the selection problem.** Before any
+    escalation, both parties' funds sit in pure single-party
+    self-custody — a bug there can at worst delay someone reclaiming
+    their *own* money, never let the other party (or anyone else) take
+    it. The genuinely dangerous multisig code — where a bug really
+    could misdirect someone's funds — only gets constructed and
+    exercised on actual disputes, not on every bond ever created. A
+    materially smaller, later-triggered, more reviewable surface than
+    "every bond has a live multisig from day one."
+  - **Residual risk, stated honestly rather than glossed over**: an
+    attester can refuse to cooperate with escalation and simply wait
+    out their own timelock to reclaim their bond unilaterally — no
+    script can force cooperation, since forcing it would require
+    exactly the pre-committed keys the rejected alternative needed.
+    This is **not resolved cryptographically, only reputationally**:
+    a verifier checking a subject's bond status treats "challenged,
+    never escalated within a reasonable window" as equivalent to (or
+    worse than) losing the dispute outright, per D001's own
+    relative-trust posture — the same move D001 already made honestly
+    for GDPR erasure (crypto-shredding isn't literal erasure, but the
+    best achievable given the real constraint, stated openly rather
+    than marketed around). The challenger's own stake is never at risk
+    from this defection — it just self-returns to them too, since it
+    was never actually joint until escalation completed.
+  - **Operational consequence**: `window_days` (A005's own per-bond
+    field) must be set comfortably longer than the realistic
+    real-world time to confirm a panel and construct a joint
+    escalation transaction — otherwise "escalate before the timelock
+    expires" becomes impractical rather than merely inconvenient. Not
+    a new claim_value field; a deployment/product guidance note for
+    whatever sets `window_days` when a bond is created.
 - **Testnet-only until a real security review happens.** Given the
   fund-loss stakes, this action's own Tasks list below treats "get it
   reviewed before it ever touches mainnet sats" as a hard gate, not a
@@ -99,8 +119,6 @@ than papered over with a premature Decision:
   treated Lightning infrastructure risk, but a strictly higher bar
   here since a script bug is unrecoverable in a way a Lightning
   provider outage isn't.
-
-## Decisions made here (the few not blocked on the open question above)
 
 - **PSBT (BIP174), not a custom transaction-serialization format**,
   for any multi-party transaction construction this action ends up
@@ -121,50 +139,58 @@ than papered over with a premature Decision:
 
 ## Tasks
 
-### Resolve the open design question first
-- [ ] Decide between pre-designated-mediator and voluntary-escalation
-      (or a third option this action's own research turns up) —
-      **this must happen before any of the tasks below**, the same
-      "decisions before implementation" discipline A001 applied to its
-      own language/kind-number choices
-- [ ] Document the chosen direction's own honestly-stated residual
-      risk (e.g. non-cooperation griefing, or upfront-mediator
-      centralization) — D001's own standard for every hard tradeoff in
-      this design
-
-### Script construction (shape depends on the resolved question above)
-- [ ] Construct the escrow output script for the chosen direction
-- [ ] Build the self-release spending path (attester alone, after
-      `window_days`, when never escalated/never disputed)
-- [ ] Build the verdict-settlement spending path (confirmed panel
-      pays the `Resolve`-determined winner)
-
-### Funding and verification
+### Pre-escalation output (single-party self-custody)
+- [ ] Construct a plain CSV-timelocked single-sig output script:
+      owner spends alone after `window_days` — used identically for
+      both a bond (attester as owner) and a challenge stake
+      (challenger as owner), per the Decision above
 - [ ] Generate a funding address/descriptor for a new bond or
-      challenge stake, to populate `EscrowRef`
+      challenge stake, to populate `EscrowRef` (BIP380 descriptor, per
+      Decisions)
 - [ ] Verify a referenced escrow is actually funded on-chain to the
       claimed `amount_sats` (watching for confirmation, not just an
       unconfirmed mempool entry)
 
-### Settlement
-- [ ] Given `dispute.IsSelfReleased` = true, construct and (on
-      regtest/testnet) broadcast the self-release spend
+### Escalation (joint custody, only once a panel is confirmed)
+- [ ] Given a `ConfirmedPanel` result, cooperatively construct (via
+      PSBT) a new n-of-m output naming the confirmed panel, spending
+      both the bond's and the stake's pre-escalation outputs into it —
+      requires both attester's and challenger's signatures, since
+      each is spending their *own* pre-escalation output
+- [ ] Detect non-escalation: a challenge exists, the panel is
+      confirmed, but no escalation transaction has been broadcast
+      within a reasonable margin of `window_days` — surfaced as data
+      for a verifier's own reputational judgment (per the Decision's
+      residual-risk handling), not enforced in-code
+
+### Settlement (from the escalated joint-custody output only)
+- [ ] Given `dispute.IsSelfReleased` = true (never escalated), the
+      pre-escalation single-sig spend is just an ordinary timelocked
+      self-spend — no new code beyond the pre-escalation output itself
 - [ ] Given `dispute.Resolve` = decided, construct and (on
-      regtest/testnet) broadcast the verdict-settlement spend
+      regtest/testnet) broadcast the verdict-settlement spend from the
+      escalated joint-custody output, paying the `Resolve`-determined
+      winner, signed by the panel's own confirmed majority
 
 ### Tests
-- [ ] Script construction unit tests against `btcd`'s regtest/simnet
-      tooling (no real funds) for both spending paths
+- [ ] Pre-escalation output: owner-alone spend succeeds only after
+      `window_days`, fails before it — unit tests against `btcd`'s
+      regtest/simnet tooling (no real funds)
+- [ ] Escalation: cooperative n-of-m construction succeeds only with
+      both original owners' signatures; a non-cooperating party blocks
+      it (confirms the residual risk is real and structural, not just
+      theoretical)
 - [ ] Funding-verification tests against a regtest node: unfunded,
       underfunded, and correctly-funded cases
 - [ ] Settlement tests: self-release spend succeeds only after the
-      window with no escalation; verdict spend succeeds only with a
+      window when never escalated; verdict spend succeeds only with a
       genuinely decided `Resolve` result and the confirmed panel's
-      actual signatures
+      actual majority signatures, from the escalated output only
 
 ### Before mainnet
-- [ ] Independent security review of the chosen script (not
-      self-certified) — hard gate, not a Task to check off solo
+- [ ] Independent security review of both the pre-escalation and
+      escalated scripts (not self-certified) — hard gate, not a Task
+      to check off solo
 
 ## Log
 
@@ -182,3 +208,28 @@ picking one — that decision needs its own focused pass, not a
 guess made while filing. Made only the implementation-format choices
 that don't depend on resolving it (PSBT, output descriptors,
 regtest/testnet-first with a hard mainnet security-review gate).
+
+2026-09-29 — Decided: voluntary escalation into joint custody, not a
+pre-designated mediator. The mediator alternative was rejected on
+principle, not just inconvenience — it would require the attester to
+unilaterally pick their own judge before a challenger exists, the
+exact single-point-of-capture failure D001's relative-trust model
+exists to avoid, not a neutral implementation tradeoff. Escalation
+also turned out to improve the action's own risk profile beyond just
+resolving the selection problem: pre-escalation, both a bond and a
+challenge stake are pure single-party timelocked self-custody — a bug
+there can at worst delay someone reclaiming their own money, never let
+the other party take it. The dangerous multisig code only gets built
+and exercised on actual disputes, not on every bond. Residual risk
+stated honestly: an attester can refuse to escalate and just wait out
+their own timelock — no script can force cooperation without
+reintroducing the pre-committed-authority problem the rejected
+alternative had. Resolved reputationally, not cryptographically: a
+verifier treats an unescalated, challenged bond as at least as bad as
+losing the dispute, the same honest technical-limit-to-social-
+enforcement move D001 already made for GDPR erasure. Noted one
+operational consequence: `window_days` must be set comfortably longer
+than realistic panel-confirmation-plus-escalation time, or the
+requirement becomes impractical rather than just inconvenient. Tasks
+rewritten to reflect the two-stage (pre-escalation self-custody,
+then escalated joint-custody) structure this decision implies.

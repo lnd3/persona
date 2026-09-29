@@ -31,52 +31,16 @@ func MultisigScript(threshold int, pubkeys [][]byte) ([]byte, error) {
 	return builder.Script()
 }
 
-// SmallTierEscalatedScript builds the small-bond tier's escalated
-// output script, per A006's Decisions: the *first* resort is a plain
-// 2-of-2 mutual settlement between the attester and challenger
-// themselves (any split they agree to, no arbiter needed); the
-// fallback, only reached if that fails, is a single mutually-agreed
-// arbiter deciding alone.
-//
-//	OP_IF
-//	    2 <attesterPubKey> <challengerPubKey> 2 OP_CHECKMULTISIG
-//	OP_ELSE
-//	    <arbiterPubKey> OP_CHECKSIG
-//	OP_ENDIF
-func SmallTierEscalatedScript(attesterPubKey, challengerPubKey, arbiterPubKey []byte) ([]byte, error) {
-	mutualSettlement, err := MultisigScript(2, [][]byte{attesterPubKey, challengerPubKey})
-	if err != nil {
-		return nil, err
-	}
-	if err := validatePubKey(arbiterPubKey); err != nil {
-		return nil, err
-	}
-
-	builder := txscript.NewScriptBuilder().
-		AddOp(txscript.OP_IF).
-		AddOps(mutualSettlement).
-		AddOp(txscript.OP_ELSE).
-		AddData(arbiterPubKey).
-		AddOp(txscript.OP_CHECKSIG).
-		AddOp(txscript.OP_ENDIF)
-	return builder.Script()
-}
-
-// LargeTierEscalatedScript builds the larger-bond tier's escalated
-// output script: a plain 2-of-2 between the two independently
-// pre-committed arbiters — no path back to the disputants themselves,
-// per A006's corrected Decisions (this tier's whole point is a
-// decisive process once escalated, not a renegotiable one).
-func LargeTierEscalatedScript(arbiterA, arbiterB []byte) ([]byte, error) {
-	return MultisigScript(2, [][]byte{arbiterA, arbiterB})
-}
-
-// TieBreakScript builds the 2-of-3 output the two disagreeing
-// arbiters jointly escalate to, naming themselves plus a
-// jointly-nominated third arbiter. Any 2 of the 3 can then settle —
-// per A006's Decisions, this always terminates in one step, since a
-// binary verdict means the third arbiter's vote necessarily sides
-// with one of the original two.
+// TieBreakScript builds a 2-of-3 output naming two disagreeing
+// parties plus a third — a general-purpose building block, kept for
+// potential reuse, though it is not one of the branches
+// UniversalScript/ReinforcedScript build directly (see upfront.go):
+// under A006's corrected upfront-configured design (2026-09-30),
+// escalation transactions no longer exist, so there is no live
+// "moment" at which two disagreeing arbiters could cooperatively
+// escalate to a jointly-nominated third the way the original
+// (superseded) escalation design assumed. Any 2 of the 3 named here
+// can settle.
 func TieBreakScript(arbiterA, arbiterB, arbiterC []byte) ([]byte, error) {
 	return MultisigScript(2, [][]byte{arbiterA, arbiterB, arbiterC})
 }

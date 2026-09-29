@@ -51,295 +51,226 @@ not reimplement).
 
 ## Decisions made here (not in D001 — concrete choices this action owns)
 
-- **The escrow structure is two-tiered, matching D001's own small/
-  larger-bond distinction (A005 already left the exact sats threshold
-  as a caller policy call) — decided 2026-09-29, refined across three
-  passes below.** Filing this action first surfaced a structural
-  tension D001's "simple n-of-m multisig" framing glossed over: an
-  arbiter panel is chosen *after* a dispute arises, but a spendable
-  Bitcoin script has to be constructed *before* anyone knows who will
-  spend from it. Working through that produced two genuinely different
-  answers for the two cases D001 already distinguishes, not one
-  answer that fits both:
+**This section reflects the current, corrected design (2026-09-30). An
+earlier escalation-based two-tier model went through several rounds of
+real bugs found at implementation time; that full journey — including
+the bug that ultimately motivated this section's redesign — is kept
+verbatim in the Log below, not deleted, since it's the reasoning that
+got here.**
 
-  **Small bonds — cooperative escalation, mutual settlement first.**
-  A bond starts as a plain timelocked output: attester spends alone
-  after `window_days`, no multisig at all, since there's no
-  counterparty yet. A challenger's stake is symmetrically just their
-  own timelocked self-custody output. Only on a challenge do the two
-  parties cooperatively escalate into a joint output — but that joint
-  output's *first* spending path is a plain **2-of-2 mutual
-  settlement** (any split either side actually agrees to), available
-  immediately, no panel needed: most disputes between two people who
-  both have real money on the line resolve by direct agreement once a
-  challenge forces the conversation, and D001 itself says a single
-  mutually-agreed arbiter is "enough" for this tier — third-party
-  adjudication should be the fallback for the minority that can't
-  agree, not the default path. Only if 2-of-2 settlement fails does a
-  *second* cooperative move (agreeing "let an arbiter decide" is a much
-  lower-friction ask than agreeing on a number) hand it to a
-  mutually-picked single arbiter, per `ConfirmedPanel`.
-  - *Rejected for this tier*: a pre-designated mediator chosen at
-    bond-creation time. The well-trodden real-world pattern (2-of-3:
-    payer, payee, a pre-agreed mediator) requires naming the mediator
-    before the challenger exists — meaning the attester alone would be
-    choosing who judges disputes against themselves. Rejected on
-    principle, not inconvenience: a direct regression against D001's
-    founding "never let one party unilaterally pick their own judge"
-    rule, the exact single-point-of-capture failure the relative-trust
-    model exists to avoid.
-  - *Residual risk, stated honestly*: an attester can refuse to
-    cooperate with escalation at all and simply wait out their own
-    timelock to reclaim their bond unilaterally — no script can force
-    cooperation without reintroducing the pre-committed-authority
-    problem just rejected. **Not resolved cryptographically, only
-    reputationally**: a verifier treats "challenged, never escalated"
-    as at least as bad as losing the dispute outright, the same
-    technical-limit-to-social-enforcement move D001 already made for
-    GDPR erasure. The challenger's own stake is never at risk from this
-    — it just self-returns to them too, since it was never actually
-    joint until escalation completed.
-
-  **Larger bonds — each side independently pre-commits their own
-  arbiter's *identity*, upfront; the escalation *mechanics* still need
-  one cooperative step — corrected 2026-09-29, see Log.** The original
-  version of this decision claimed each party's own output "already
-  commits to an arbitration path from the start," baked into the
-  script at funding time. **That was wrong, caught while actually
-  implementing it**: a Bitcoin script's public keys are fixed the
-  moment an output is created and can never be added later. The
-  attester's bond is created *first*, before any challenger (and
-  therefore any second arbiter) exists — so the bond's own output
-  structurally cannot name a key that doesn't exist yet, the same
-  chicken-and-egg problem this whole action started from, one level
-  down. The obvious patch — let each side's *own* appointed arbiter
-  alone move that side's output — was checked and rejected too: it's
-  insecure, not just simpler, since an owner and their own hand-picked
-  arbiter could then always collude to return funds to the owner
-  regardless of the actual dispute, exactly the check requiring *both*
-  arbiters to agree exists to prevent.
-  - **What's actually achievable, split honestly into two parts**:
-    - *Pre-committed, immutable arbiter identity* — each side still
-      independently picks their own arbiter, at funding time, and that
-      choice can never be swapped or haggled over later. This part
-      genuinely needs no cooperation and is published as its own
-      claim (see Decisions below) rather than baked into the escrow
-      script itself, since the script can't hold a key that doesn't
-      exist yet regardless.
-    - *Escalation into joint arbiter custody still needs one
-      cooperative step* — moving self-custodied funds into a jointly-
-      controlled output needs each owner's own signature on their own
-      output, exactly the same shape (and the same residual
-      non-cooperation risk) as the small-bond tier's escalation.
-      Bitcoin's own constraints make this unavoidable; no clever
-      scripting removes it.
-  - **What this tier still actually buys, stated honestly rather than
-    reasserting the original overclaim**: once *both* sides have
-    escalated, resolution power sits *entirely* with the two
-    pre-committed arbiters — unlike the small-bond tier, there is no
-    2-of-2 mutual-settlement path back to the disputants themselves,
-    so once escalated, neither party can further stall or renegotiate
-    the outcome. The value is a decisive, un-renegotiable process and
-    an arbiter choice that can't be haggled over after the fact — not
-    "arbitration with zero cooperation ever required," which isn't
-    actually achievable here.
-  - **Not the same thing as the rejected pre-designated mediator**,
-    despite also being chosen "upfront": the earlier rejection was
-    specifically about *one shared judge*, unilaterally imposed by
-    whichever party existed first. This is each side independently
-    appointing their *own* representative over their *own* funds only
-    — structurally more like each side hiring their own lawyer than
-    one side picking a shared arbitrator for both.
-  - **New claim type: `net.persona.core.arbiter_commitment`** — reuses
-    A001's attestation primitive again rather than inventing a
-    separate durable-record mechanism, consistent with A003/A005's own
-    "X is just an attestation" precedent. Attester = the bond or
-    challenge owner, subject = themself, `claim_value` =
-    `"<bond_or_challenge_event_id>:<arbiter_pubkey>"`, published
-    alongside the bond/challenge event. This is an addition to A005's
-    protocol layer, not a change to any of A005's already-shipped
-    claim types (`bond`/`dispute_challenge` keep their existing
-    `claim_value` shape unchanged) — a deliberate choice to avoid
-    reopening a DONE action's format for something that can just as
-    well be a companion claim.
-  - **Tie-break when the two appointed arbiters disagree — decided
-    2026-09-29: they jointly escalate to a third arbiter, using the
-    same joint signing power they already have.** No new key needs to
-    be pre-committed upfront to make this work: once escalation has
-    happened, `arbiter_A` and `arbiter_B` already jointly control the
-    resulting joint output (it takes both of them to move the funds at
-    all), so instead of using that joint power to decide the dispute's
-    substance, they can use
-    the identical power procedurally — cooperatively constructing (via
-    PSBT, same tool already chosen) a transaction that moves both
-    outputs into a fresh 2-of-3 output naming themselves plus a
-    jointly-nominated third arbiter. Settlement then just needs that
-    third arbiter to agree with whichever of the original two they
-    find more persuasive (2-of-3, not the third arbiter alone) —
-    preserving some accountability rather than handing a stranger
-    unilateral power. This is the same shape as the small-bond tier's
-    own "agreeing to let someone decide is lower-friction than
-    agreeing on the decision itself" move, one level up: the two
-    arbiters are far more likely to cooperate on *escalating* than the
-    original disputants were, since they have professional/
-    reputational incentive to actually resolve the case, not a direct
-    financial stake in the outcome.
-    - **This terminates in exactly one escalation step, never
-      recurses further.** Verdicts are binary (A005's `Verdict` type:
-      `attester_wins`/`challenger_wins`, nothing else) — so the moment
-      a third arbiter casts any vote at all, they necessarily side
-      with one of the original two, and 2-of-3 is immediately reached.
-      There is no way for three binary voters to produce a fresh tie
-      once all three have actually weighed in, so no fourth or fifth
-      arbiter is ever needed. The only way this step fails to resolve
-      anything is the two original arbiters never agreeing to involve
-      a third at all — a cooperation failure, not a repeating tie, and
-      already covered by the residual below.
-    - *Rejected*: pre-committing a third tie-breaking key at
-      bond-creation time (reopens the exact chicken-and-egg problem
-      this tier already solved once — nobody exists yet to jointly
-      name a tie-breaker at funding time either), and giving per-side
-      small panels instead of single arbiters (doesn't actually
-      eliminate ties, just moves the same problem to a larger even
-      split, e.g. 3-vs-3, without a structural fix).
-    - *Residual, stated honestly*: if the two original arbiters can't
-      even agree to escalate (rarer and one step further removed than
-      the disputants themselves failing to cooperate, but not
-      impossible), nothing forces it — each side's own pre-escalation
-      timelock fallback stands as the bounded worst case, same
-      "reverts to each party keeping their own original funds, nobody
-      else's money is ever at risk" property the small-bond tier's own
-      non-cooperation residual already relies on.
-  - **This tier still improves on a naive shared-multisig-from-day-one
-    approach**: each side's arbitration branch only activates on
-    *their own* output, so a bug in one side's script can't misdirect
-    the other side's funds — the blast radius of a mistake stays
-    contained to whichever side's own arbiter-branch code is wrong.
-
-  **Operational consequence shared by both tiers**: `window_days`
-  (A005's own per-bond field) must be set comfortably longer than the
-  realistic real-world time needed to actually resolve a dispute
-  through whichever tier's process applies — a deployment/product
-  guidance note, not a new claim_value field.
-- **Testnet-only until a real security review happens.** Given the
-  fund-loss stakes, this action's own Tasks list below treats "get it
-  reviewed before it ever touches mainnet sats" as a hard gate, not a
-  nice-to-have — consistent with how seriously `cinder`'s own D005
-  treated Lightning infrastructure risk, but a strictly higher bar
-  here since a script bug is unrecoverable in a way a Lightning
-  provider outage isn't.
-
-- **PSBT (BIP174), not a custom transaction-serialization format**,
-  for any multi-party transaction construction this action ends up
-  needing (whichever direction above is chosen, cooperative signing
-  between at least two parties is unavoidable) — a standardized,
-  wallet-interoperable format, not something worth reinventing.
-- **Output descriptors (BIP380), not a free-text `escrow_ref`
-  convention**, for what `EscrowRef` in A005's `BondInfo`/
-  `ChallengeInfo` actually contains once this action defines it
-  concretely — standard, tool-supported, and already what A005's own
-  colon-parsing fix anticipated (descriptors can contain colons,
-  which is exactly the case A005's regex fix was written to handle).
-- **Regtest/testnet only until a security review**, mainnet
-  activation gated behind it explicitly, not left as an implicit
-  "someday" — this is the fund-loss-risk piece of work D001 and A005
-  both flagged, and this action treats that flag as binding on itself,
-  not just on its predecessors.
+- **Bitcoin-native, not a move to a smart-contract chain — decided
+  2026-09-30, after real research, not asserted.** Before redesigning
+  the script, the question was raised directly: doesn't this whole
+  class of problem (a script needing to react to a party that doesn't
+  exist yet) call for a smart-contract chain (Ethereum-style EVM,
+  concretely evaluated: Hyperliquid's HyperEVM) instead of fighting
+  Bitcoin Script's limits? Researched concretely rather than guessed:
+  - Hyperliquid HyperEVM: 24 validators, BFT-tolerant to ~1/3
+    malicious — a real, named tradeoff in its own documentation
+    ("easier to coordinate, but also easier to influence, attack, or
+    govern through a narrow group"). No confirmed core-protocol/bridge
+    exploit yet, but real app-layer losses have already happened on
+    top of it.
+  - Getting BTC value onto *any* EVM chain (WBTC/custodial, HyperUnit/
+    MPC-guardian, tBTC/large-threshold-set) always means trusting some
+    off-chain signer group — never as trustless as a native UTXO.
+    Bridge exploits are not hypothetical: >$2.8B stolen since 2022,
+    >69% of all DeFi losses in that period (Ronin, Poly Network, BNB
+    Bridge, Wormhole, Nomad — roughly split between key-compromise and
+    contract-logic-bug root causes).
+  - Kleros-style crowdsourced juror pools genuinely solve "unknown
+    challenger at deploy time" elegantly — but that's *exactly* the
+    global-crowdsourced-court model D001 already considered and
+    rejected ("one canonical true/false verdict everyone inherits...
+    the kind of single-point-of-capture authority this design's
+    relative-trust principle exists to avoid"). Adopting it here would
+    mean walking back a deliberate D001 decision, not swapping
+    implementation platforms.
+  - The Bitcoin-native 2-of-3-mediator pattern this design was already
+    converging toward turns out to be a real, standardized (BIP-11),
+    long-deployed pattern, whose one documented weakness — the
+    mediator can simply refuse to act — is exactly the non-cooperation
+    residual already accepted and resolved reputationally elsewhere in
+    this design, not a new risk category.
+  - **Conclusion**: a smart-contract chain's real advantage here is
+    script *flexibility* (who can call what, when), not better
+    arbitration of the dispute's substance — no chain's consensus,
+    staked or not, can *compute* whether a scam actually happened; that
+    still needs a human arbiter's judgment regardless of platform. The
+    flexibility gap turned out to be closable on Bitcoin itself (below),
+    at no bridge-custody or second-chain-trust cost.
+- **The key insight that makes a single, fully upfront-configured
+  Bitcoin script possible: the "unknown future party" isn't actually
+  unknown for this dispute type.** D001/A005 scoped bonding/slashing to
+  dispute type 1 only — "behavioral/quality disputes between two
+  *identified* parties." The bond secures the attester's own
+  attestation, and that attestation already names a `subject_key` —
+  the very party who becomes the challenger if they disagree. Their
+  pubkey is public the moment the attestation exists; it was never
+  really a not-yet-existing stranger, the way an arbiter genuinely was.
+  Only the arbiter piece is solved via a **standing**
+  `net.persona.core.arbiter_commitment` claim — published once,
+  independent of any specific bond, reusable across every future
+  dispute where a persona is named as either attester or subject
+  (self-referential, reuses A001's attestation primitive, same "X is
+  just an attestation" precedent A003/A005 already set) — rather than
+  a per-dispute selection that would reopen the original chicken-and-egg
+  problem.
+- **`UniversalScript`: a single, static, fully upfront-configured
+  script — no escalation transaction, ever.** Always buildable, no
+  dependency on the subject having published anything:
+  ```
+  IF        2-of-2 (attester, subject)          -- mutual settlement, any time
+  ELSE IF   2-of-2 (attester, arbiter)           -- arbiter sides with attester
+  ELSE IF   2-of-2 (subject, arbiter)            -- arbiter sides with subject
+  ELSE      <sequence> CSV DROP attester CHECKSIG -- last resort: nobody engaged
+  ```
+  The mutual-settlement branch needs no timelock at all — attester and
+  subject can settle directly, immediately, any time, which is what
+  makes voluntary resolution actually possible *during* an active
+  dispute (the superseded escalation design's single CSV-gated path
+  blocked this entirely — see Log). The CSV-gated self-release is now a
+  genuine last resort, reachable only if *nobody* — not subject, not
+  arbiter — ever engaged at all; it no longer means "the dispute
+  outcome is irrelevant once the clock runs out," which was the
+  superseded design's real, structural flaw.
+- **`ReinforcedScript`: `UniversalScript`'s branches plus one stronger
+  branch, available only when the subject has independently published
+  their own standing arbiter_commitment.**
+  ```
+  IF        2-of-2 (attester, subject)                     -- mutual settlement
+  ELSE IF   2-of-2 (attesterArbiter, subjectArbiter)        -- both arbiters agree, no disputant needed
+  ELSE IF   2-of-2 (attester, attesterArbiter)              -- arbiter sides with attester
+  ELSE IF   2-of-2 (subject, subjectArbiter)                -- arbiter sides with subject
+  ELSE      <sequence> CSV DROP attester CHECKSIG           -- last resort
+  ```
+  A real, bounded precondition, stated honestly rather than hidden: if
+  the subject hasn't opted in with a standing commitment, only
+  `UniversalScript` is buildable for a claim naming them — the stronger
+  "neither disputant needed" property isn't available for free.
+  - *Residual, stated honestly*: if the two independent arbiters
+    disagree (attester's arbiter sides with attester via branch 3 while
+    subject's arbiter separately sides with subject via branch 4),
+    there is no further tie-break baked into this static script — under
+    this design there's no live moment left to escalate to a third
+    arbiter the way the superseded escalation design imagined.
+    Whichever competing spend actually confirms first wins. Accepted as
+    rare (both arbiters must genuinely disagree) rather than solved with
+    more machinery, the same "an honestly-bounded limitation beats
+    invented complexity" choice made elsewhere in this design (e.g.
+    GDPR erasure).
+- **PSBT (BIP174) for settlement construction — much smaller than
+  originally scoped, since there's no escalation chain to construct
+  anymore.** Settlement is always exactly one transaction spending the
+  bond/stake output directly through whichever branch applies.
+  `psbt.Finalize`'s own built-in multisig finalizer can't be reused
+  as-is — it requires a script recognizable as a plain "M of N
+  CHECKMULTISIG" (`checkIsMultiSigScript`), which neither this design's
+  `OP_IF`-branching scripts nor the single-key CSV fallback branch are
+  — so `FinalizeUniversal`/`FinalizeReinforced` (`settle.go`) do that
+  assembly by hand, reusing the exact witness ordering already
+  validated against the real consensus engine.
+- **`EscrowRef` for these scripts is plain hex-encoded witness-script
+  bytes, not a miniscript-shaped descriptor** — the earlier narrow
+  BIP380-style descriptor (still kept, `descriptor.go`, for the
+  single-key CSV shape alone) doesn't stretch to a genuinely custom,
+  multi-branch script without a real compiler, which is out of scope.
+  Unambiguous and exact (independently re-derivable via
+  `WitnessScriptHash`), at the cost of not being human-readable.
+- **Regtest/testnet only until a security review**, mainnet activation
+  gated behind it explicitly, not left as an implicit "someday" — this
+  is the fund-loss-risk piece of work D001 and A005 both flagged, and
+  this action treats that flag as binding on itself, not just on its
+  predecessors.
 
 ## Tasks
 
-### Shared: pre-escalation output (both tiers, single-party self-custody)
-- [x] Construct a plain CSV-timelocked single-sig output script:
-      owner spends alone after `window_days` — `internal/escrow/
-      timelock.go` `PreEscalationScript`/`SequenceForDays` (BIP68
-      time-based relative locktime, not block-count, so `window_days`
-      maps directly without a block-time assumption)
-- [x] Generate a funding address/descriptor for a new bond or
-      challenge stake, to populate `EscrowRef` — `descriptor.go`
-      `FormatPreEscalationDescriptor`/`ParsePreEscalationDescriptor`
-      (a narrow, fixed-template BIP380-shaped descriptor, not a
-      general miniscript compiler — see its own doc comment) plus
-      `timelock.go` `FundingAddress` for the actual bech32 address
-- [x] Verify a referenced escrow is actually funded on-chain to the
-      claimed `amount_sats` — `verify.go` `VerifyFunded`, against a
-      `ChainQuerier` interface. **Only the logic is done, not a real
-      backend**: no regtest/bitcoind node is reachable in this
-      environment to build and test a concrete RPC-backed
-      implementation against, so `ChainQuerier` stays an interface
-      (tested via a mock) until one is available — see Log
+**This section reflects the current design (2026-09-30). The
+superseded escalation-based two-tier model's task list — including the
+non-escalation-detection and escalation-PSBT tasks it needed — no
+longer applies; that history is kept in the Log, not here.**
 
-### Small-bond tier: cooperative escalation, mutual settlement first
-- [x] Escalated-output script: 2-of-2 mutual settlement (any split, no
-      panel needed) OR a single mutually-agreed arbiter fallback —
-      `multisig.go` `SmallTierEscalatedScript`, both spending paths
-      validated against the real `txscript` consensus engine
-- [ ] Detect non-escalation: a challenge exists but no escalation
-      transaction has been broadcast within a reasonable margin of
-      `window_days` — surfaced as data for a verifier's own
-      reputational judgment, not enforced in-code — **not yet built**
-- [ ] Cooperative PSBT construction helpers for actually building the
-      escalation/settlement transactions (this session built and
-      tested the *scripts* directly against hand-built `wire.MsgTx`
-      values, which is sufficient to validate the scripts themselves,
-      but a real caller needs PSBT-based construction/signing/
-      combining helpers around them) — **not yet built**
+### Scripts
+- [x] `PreEscalationScript`/`SequenceForDays` — BIP68 time-based CSV
+      fragment reused as the last-resort branch inside both
+      `UniversalScript` and `ReinforcedScript` — `timelock.go`
+- [x] `MultisigScript` — general M-of-N `OP_CHECKMULTISIG` builder,
+      reused for every 2-of-2 branch — `multisig.go`
+- [x] `UniversalScript` (4 branches) and `ReinforcedScript` (5
+      branches) — `upfront.go`, every branch validated by actually
+      signing and executing real spends (and confirming invalid
+      cross-pairings fail) against `btcd`'s real `txscript` engine
+- [x] `net.persona.core.arbiter_commitment` — standing, not
+      per-bond, claim — `arbiter_commitment.go`, reuses A001's
+      `ValidateClaimType`/`attestation.New`/`Verify` directly, additive
+      to A005's protocol layer (not a change to A005's shipped claim
+      types)
+- [x] `TieBreakScript` (2-of-3) — kept as a general-purpose building
+      block, though not one of `UniversalScript`/`ReinforcedScript`'s
+      own branches under the current no-escalation design — `multisig.go`
 
-### Larger-bond tier: independent upfront arbiter commitments
-- [x] Define and validate the `net.persona.core.arbiter_commitment`
-      claim_type — `arbiter_commitment.go`, reuses A001's
-      `ValidateClaimType`/`attestation.New`/`Verify` directly
-- [x] Escalated-output script: 2-of-2 between the two independently
-      pre-committed arbiters, no path back to the disputants
-      themselves — `multisig.go` `LargeTierEscalatedScript`, validated
-      (both-sign succeeds, either-alone fails) against the engine
-- [x] Tie-break script: 2-of-3 naming both original arbiters plus a
-      jointly-nominated third — `multisig.go` `TieBreakScript`,
-      validated for all three possible 2-of-3 signer combinations
-- [ ] Cooperative PSBT construction helpers for the escalation and
-      tie-break transactions themselves — same gap as the small-bond
-      tier, **not yet built**
+### Funding and reference
+- [x] `WitnessScriptHash`/`FundingAddress` — deriving the actual P2WSH
+      scriptPubKey/bech32 address from any of this package's scripts —
+      `timelock.go`
+- [x] `EscrowRef` encoding: `FormatPreEscalationDescriptor` (narrow
+      BIP380-style, single-key-CSV shape only) plus
+      `FormatWitnessScriptRef`/`ParseWitnessScriptRef` (plain hex, for
+      the genuinely custom multi-branch scripts) — `descriptor.go`
+- [x] Verify a referenced escrow is actually funded on-chain —
+      `verify.go` `VerifyFunded`, against a `ChainQuerier` interface.
+      **Only the logic is done, not a real backend**: no regtest/
+      bitcoind node is reachable in this environment to build and test
+      a concrete RPC-backed implementation against, so `ChainQuerier`
+      stays an interface (tested via a mock) until one is available
 
-### Settlement (shared)
-- [x] `dispute.IsSelfReleased` = true (never escalated, either tier):
-      the pre-escalation single-sig spend is an ordinary timelocked
-      self-spend — no new code needed beyond `PreEscalationScript`
-      itself, confirmed by `TestPreEscalationScript_OwnerSpendsAfterWindow`
+### Settlement (PSBT)
+- [x] `NewSettlementPacket`/`SignSettlementInput` — build an unsigned
+      PSBT for a single settlement transaction and let cooperating
+      parties each attach their own partial signature independently —
+      `settle.go`
+- [x] `FinalizeUniversal`/`FinalizeReinforced` — hand-written
+      finalizers (the standard library's own `psbt.Finalize` can't
+      recognize these scripts as plain multisig), trying each branch
+      in turn against whichever partial signatures are actually
+      present, refusing the fallback branch unless the packet's own
+      sequence already satisfies the CSV window
+- [x] `ExtractSettlement` — thin wrapper over `psbt.Extract`
+- [x] `dispute.IsSelfReleased` = true (nobody ever engaged): the
+      fallback branch handles this with no new code beyond what's
+      already in `UniversalScript`/`ReinforcedScript`
 
 ### Tests
-- [x] Pre-escalation output: owner-alone spend succeeds only after
-      `window_days`, fails before it, fails for a non-owner signer —
-      `TestPreEscalationScript_*`, run against the real `txscript`
-      engine (no live node needed — CSV compares the script's required
-      sequence directly against the spending input's own declared
-      value, so no simulated passage of time is required either)
-- [x] Small-bond tier: mutual settlement succeeds with both
-      signatures; arbiter-fallback path succeeds with just the
-      arbiter's signature; the arbiter *alone* cannot satisfy the
-      mutual-settlement branch — `TestSmallTierEscalatedScript_*`
-- [x] Larger-bond tier: the escalated 2-of-2 output spends only with
-      *both* pre-committed arbiters' signatures, confirming the
-      collusion concern the corrected design exists to close —
-      `TestLargeTierEscalatedScript_BothArbitersRequired`
-- [x] Larger-bond tier tie-break: any 2 of the 3 (in any combination)
-      settle the tie-break output — `TestTieBreakScript_AnyTwoOfThreeSettle`
+- [x] Pre-escalation/fallback branch: owner-alone spend succeeds only
+      after `window_days`, fails before it, fails for a non-owner
+      signer — `TestPreEscalationScript_*`
+- [x] `UniversalScript`: all four branches succeed with the right
+      signers; arbiter alone satisfies nothing; attester alone can't
+      take the mutual-settlement branch — `TestUniversalScript_AllFourBranches`
+- [x] `ReinforcedScript`: all five branches succeed with the right
+      signers; a cross-paired attempt (attester + the *other* side's
+      arbiter) fails — `TestReinforcedScript_AllFiveBranches`
+- [x] `TieBreakScript`: any 2 of 3 settle — `TestTieBreakScript_AnyTwoOfThreeSettle`
 - [x] `arbiter_commitment` claim construction/verification round-trip
       and malformed-value rejection — `TestArbiterCommitmentClaim*`
 - [x] `VerifyFunded` logic: funded/unfunded/underfunded/wrong-script/
-      query-error cases, against a mock `ChainQuerier` —
-      `TestVerifyFunded*`
-- [x] Descriptor format/parse round-trip and malformed-value rejection
-      — `TestDescriptorRoundTrip`, `TestParsePreEscalationDescriptorRejectsMalformed`
-- [ ] Non-cooperation tests (a party refusing to escalate blocks the
-      process) — **not yet built**, depends on the still-missing PSBT
-      construction helpers to have something to *not* cooperate with
+      query-error cases, against a mock `ChainQuerier` — `TestVerifyFunded*`
+- [x] Descriptor/witness-script-ref format/parse round-trips and
+      malformed-value rejection — `TestDescriptorRoundTrip`,
+      `TestWitnessScriptRefRoundTrip`, and their rejection counterparts
+- [x] Full PSBT round trip (build → independently sign → finalize →
+      extract → re-validate against the real engine, exactly as a
+      relay/miner would) for `UniversalScript`'s mutual-settlement,
+      arbiter-sides-with-subject, and fallback branches, plus
+      `ReinforcedScript`'s both-arbiters-agree branch, plus a
+      not-yet-finalizable case — `TestSettlement_*`
 - [ ] Funding-verification tests against a real regtest node —
       **blocked**, no node reachable in this environment
 
 ### Before mainnet
-- [ ] Independent security review of every script variant across both
-      tiers (not self-certified) — hard gate, not a Task to check off
-      solo; **not reached — most of the surrounding plumbing above is
-      still unbuilt**
+- [ ] Independent security review of every script and the finalizer
+      logic (not self-certified) — hard gate, not a Task to check off
+      solo; **not reached**
 
 ## Log
 
@@ -498,3 +429,70 @@ surrounding plumbing isn't built yet. This is a large, multi-part,
 explicitly fund-loss-risk action — treating "the script logic is
 real and consensus-validated" as a legitimate, substantial slice
 rather than claiming the whole action is finished.
+
+2026-09-30 — Asked to build the PSBT construction helpers for the
+escalation-based design above. Doing so surfaced a second, more
+serious bug than the key-availability one already fixed: CSV blocks
+*any* spend of the pre-escalation output before `window_days`,
+including a legitimate cooperative escalation — meaning voluntary
+escalation, as scripted, was actually impossible before the timelock
+expired, and even once it did expire, the script only ever checked
+the owner's own signature, tying it to no dispute outcome at all. The
+bond as designed provided no real enforcement in either tier.
+
+Considered and researched a genuine fork before patching further:
+should the escrow layer move to a smart-contract chain (Ethereum-style
+EVM, concretely Hyperliquid's HyperEVM) instead of continuing to fight
+Bitcoin Script's limits? Real research (not assertion): Hyperliquid
+runs 24 validators (BFT to ~1/3 malicious, a named tradeoff in its own
+docs); every path to get BTC value onto an EVM chain (WBTC, HyperUnit,
+tBTC) requires trusting some off-chain signer set, and bridge exploits
+have cost >$2.8B since 2022 (>69% of all DeFi losses in that period) —
+a real, demonstrated risk category, not a hypothetical one to weigh
+against a hypothetical script bug. Kleros's juror-pool model does
+solve "unknown challenger at deploy time" elegantly, but it's exactly
+the global-crowdsourced-court model D001 already rejected for its own
+stated reasons. Concluded: no chain's consensus can adjudicate the
+dispute's *substance* (a human judgment call, not on-chain-computable
+data) regardless of platform — the actual gap was script flexibility,
+and that turned out to be closable on Bitcoin itself.
+
+The closing insight: D001/A005 scoped bonding/slashing to disputes
+between two *identified* parties — the attestation being bonded
+already names its own `subject_key`, so the "future" counterparty was
+never actually unknown, only the arbiter was. Redesigned around this:
+`UniversalScript` (4 branches: mutual settlement any time, arbiter
+sides with attester, arbiter sides with subject, CSV last resort) and
+`ReinforcedScript` (adds a "both independently pre-committed arbiters
+agree, no disputant needed" branch, available only if the subject has
+published their own standing `arbiter_commitment`) — a single, static
+script, fully configured at bond-creation time, no escalation
+transaction ever. `arbiter_commitment` became a *standing* claim (not
+per-bond), reusable across any future dispute. Removed
+`SmallTierEscalatedScript`/`LargeTierEscalatedScript`
+(superseded); kept `TieBreakScript` as a general building block, no
+longer one of the two main scripts' own branches, since there's no
+live moment left to escalate to a third arbiter under a static
+design — a disagreement between the two independent arbiters is now an
+accepted, rare residual (whichever competing spend confirms first
+wins), not solved with more machinery.
+
+Built the PSBT settlement helpers this was actually about, now much
+smaller than originally scoped since there's no escalation chain:
+`NewSettlementPacket`/`SignSettlementInput` (build, sign
+independently), `FinalizeUniversal`/`FinalizeReinforced` (hand-written
+— the standard library's own multisig finalizer doesn't recognize
+`OP_IF`-branching scripts or the single-key CSV branch, confirmed by
+reading `psbt`'s own `checkIsMultiSigScript`), `ExtractSettlement`.
+Also replaced `EscrowRef`'s BIP380-descriptor framing with plain
+hex-encoded witness-script bytes for these custom scripts (the earlier
+narrow descriptor template only fit the single-key CSV shape, kept for
+that case alone). Every branch of both new scripts, plus full PSBT
+build→sign→finalize→extract→re-validate round trips for the common
+paths, passes against the real consensus engine — including one
+caught-and-fixed finalizer bug (the fallback finalizer initially
+didn't check the packet's own sequence against the CSV requirement,
+so it would have happily produced a witness real validation would
+reject at broadcast time). 22 new/changed tests, full repo clean (110
+tests total). Still not DONE: `ChainQuerier`'s real backend (still no
+regtest node reachable here) and the mainnet security-review gate.

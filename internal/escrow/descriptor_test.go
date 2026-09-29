@@ -45,3 +45,32 @@ func TestFormatPreEscalationDescriptorRejectsInvalidPubKey(t *testing.T) {
 		t.Error("expected error for a malformed pubkey")
 	}
 }
+
+func TestWitnessScriptRefRoundTrip(t *testing.T) {
+	_, attesterPub := newTestKey(t)
+	_, subjectPub := newTestKey(t)
+	_, arbiterPub := newTestKey(t)
+	seq, err := SequenceForDays(14)
+	if err != nil {
+		t.Fatalf("SequenceForDays: %v", err)
+	}
+	witnessScript, err := UniversalScript(attesterPub, subjectPub, arbiterPub, seq)
+	if err != nil {
+		t.Fatalf("UniversalScript: %v", err)
+	}
+
+	ref := FormatWitnessScriptRef(witnessScript)
+	got, err := ParseWitnessScriptRef(ref)
+	if err != nil {
+		t.Fatalf("ParseWitnessScriptRef: %v", err)
+	}
+	if string(got) != string(witnessScript) {
+		t.Errorf("round-tripped script = %x, want %x", got, witnessScript)
+	}
+}
+
+func TestParseWitnessScriptRefRejectsInvalidHex(t *testing.T) {
+	if _, err := ParseWitnessScriptRef("not hex"); err == nil {
+		t.Error("expected error for invalid hex")
+	}
+}

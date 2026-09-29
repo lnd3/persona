@@ -51,3 +51,26 @@ func ParsePreEscalationDescriptor(descriptor string) (ownerPubKey []byte, sequen
 	}
 	return pubKey, uint32(seq), nil
 }
+
+// FormatWitnessScriptRef and ParseWitnessScriptRef encode/decode
+// EscrowRef for UniversalScript/ReinforcedScript outputs (upfront.go)
+// — genuinely custom, multi-branch scripts, not one of the standard
+// shapes (single-sig, plain multisig, or this package's own narrow
+// pre-escalation-only template above) that a miniscript-shaped
+// descriptor can represent without a real compiler. Rather than
+// stretch the narrow descriptor template to cover a shape it wasn't
+// designed for, EscrowRef for these scripts is just the plain
+// hex-encoded witness script itself — unambiguous and exact (anyone
+// can independently re-derive the P2WSH address via WitnessScriptHash
+// and verify it matches), at the cost of not being human-readable.
+func FormatWitnessScriptRef(witnessScript []byte) string {
+	return hex.EncodeToString(witnessScript)
+}
+
+func ParseWitnessScriptRef(ref string) ([]byte, error) {
+	script, err := hex.DecodeString(ref)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invalid hex: %v", ErrMalformedDescriptor, err)
+	}
+	return script, nil
+}

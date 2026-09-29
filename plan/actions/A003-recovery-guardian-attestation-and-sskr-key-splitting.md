@@ -1,7 +1,7 @@
 ---
 id: A003
 title: Recovery — guardian attestation and SSKR key splitting
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-29
@@ -51,17 +51,22 @@ Builds directly on:
 
 ## Decisions made here (not in D001 — concrete choices this action owns)
 
-- **Shamir secret sharing via `hashicorp/vault/shamir`, not a
-  from-scratch or bech32-SSKR-format implementation.** D001 cites SSKR
+- **Shamir secret sharing implemented directly, not via
+  `hashicorp/vault/shamir` as originally planned, and not a
+  bech32-SSKR-format implementation either.** D001 cites SSKR
   (BlockchainCommons' bech32-encoded Shamir variant) as prior art, but
   the bech32 wrapping is a human-transcription convenience for
   paper-backup workflows — not needed here, since shares are never
   meant to be read or typed by a human; they move guardian-to-owner
-  only as NIP-44-encrypted event payloads. `hashicorp/vault/shamir` is
-  a small, dependency-light, widely-used Go implementation of the same
-  underlying GF(256) Shamir scheme; reusing it avoids hand-rolling
-  finite-field arithmetic for no benefit. Revisit if a future action
-  actually needs human-transcribable paper backups.
+  only as NIP-44-encrypted event payloads. **Corrected at
+  implementation time** (see Log): `hashicorp/vault/shamir` turned out
+  not to be an independently versioned module — importing it pulls in
+  the entire `hashicorp/vault` repository and forces a Go toolchain
+  bump (1.24.1 → 1.25.3), wildly disproportionate for one small,
+  dependency-free, standard algorithm. Implemented the same GF(256)
+  Shamir construction directly instead (~180 lines, no new
+  dependencies). Revisit if a future action actually needs
+  human-transcribable paper backups.
 - **Two new claim types, both under this project's existing
   `net.persona.core.*` namespace** (matching A002's `trust` edge
   precedent):
@@ -89,56 +94,87 @@ Builds directly on:
   plaintext or as a public claim_value.** The owner splits their
   private key into `n` shares at guardian-designation time, encrypts
   each share to its guardian's pubkey with NIP-44, and publishes each
-  as a NIP-44-encrypted direct message event (kind 4-style, standard
-  Nostr private-message shape) — not a new transport, reusing an
-  existing NIP so generic Nostr clients could in principle also
-  deliver it. This action implements the split, the per-guardian
-  encrypt, and the decrypt-on-the-guardian's-side steps; it does not
-  implement a DM inbox/client, only building and reading the event.
+  as a NIP-44-encrypted delivery event. **Not literally kind 4
+  (NIP-04) as originally sketched**: kind 4 implies NIP-04's own
+  (different, weaker) encryption scheme, so reusing it with NIP-44
+  content would mislead any client that tried to interpret it
+  correctly. Minted a dedicated kind, **3301**, adjacent to A001's own
+  3300 in the same open gap that decision already identified — same
+  "document it openly, don't wait for permission" posture, same
+  live-registry-recheck caveat A001 carried. This action implements
+  the split, the per-guardian encrypt/build, and the
+  decrypt/extract-on-the-guardian's-side steps; it does not implement
+  a DM inbox/client or any actual relay delivery, only building and
+  reading the event itself.
 - **Combine requires the actual threshold of decrypted shares as
   local input — no network code reconstructs a key.** Reconstruction
   happens entirely offline, given `m` shares a caller has already
   collected out-of-band (however they got returned) — this action
   will not implement any guardian-contact/request-relay workflow.
+- **Corrected a pre-existing bug in A001's `claim_type` namespacing
+  regex, found while implementing this action**: D001's own vocabulary
+  already names these claim types with underscores
+  (`recovery_guardian`/`recovery_confirm`), but A001's
+  `ValidateClaimType` regex only allowed hyphens within a label, so
+  the design's own established claim types would have been rejected
+  by its own validator. Fixed in `internal/attestation` (not
+  duplicated here) to accept both `-` and `_` in a label — a one-line
+  regex fix, but worth noting since it affects every future claim_type
+  choice, not just this action's two.
 
 ## Tasks
 
 ### Key splitting
-- [ ] Split a `identity.Persona` private key into `n` Shamir shares
-      with threshold `m`, via `hashicorp/vault/shamir`
-- [ ] Combine `m` (or more) shares back into the original private key
-      and reject/error clearly on fewer than `m`
+- [x] Split a private key into `n` Shamir shares with threshold `m` —
+      `internal/recovery/shamir.go` `Split` (direct GF(256)
+      implementation, not `hashicorp/vault/shamir`; see Decisions)
+- [x] Combine `m` (or more) shares back into the original private key
+      and reject/error clearly on fewer than `m` — `Combine`,
+      `ErrInsufficientShares`
 
 ### Guardian designation
-- [ ] Encrypt each share to its guardian's pubkey (NIP-44) and build
-      the delivery event
-- [ ] Decrypt a received share event, given the guardian's own keypair
-- [ ] Construct and verify `net.persona.core.recovery_guardian` claims
-      (reuses A001's `New`/`Verify`/`ValidateClaimType` — no new
-      validation code needed beyond the claim_value shape)
+- [x] Encrypt each share to its guardian's pubkey (NIP-44) and build
+      the delivery event — `internal/recovery/share.go`
+      `EncryptShare`/`BuildShareEvent` (kind 3301)
+- [x] Decrypt a received share event, given the guardian's own keypair
+      — `DecryptShare`/`ExtractShare`
+- [x] Construct and verify `net.persona.core.recovery_guardian` claims
+      (reuses A001's `New`/`Verify`/`ValidateClaimType`) —
+      `internal/recovery/claims.go` `NewGuardianClaim`/
+      `ParseGuardianClaim`
 
 ### Recovery confirmation
-- [ ] Construct and verify `net.persona.core.recovery_confirm` claims
-- [ ] Given a fetched set of `recovery_confirm` events for a subject,
+- [x] Construct and verify `net.persona.core.recovery_confirm` claims
+      — `NewConfirmClaim`/`ParseConfirmClaim`
+- [x] Given a fetched set of `recovery_confirm` events for a subject,
       group by `group_id:recovery_nonce` and report whether the
-      designated threshold has been met (count of matching, uniquely-
-      attesting guardians against the `recovery_guardian` set's own
-      `m`)
+      designated threshold has been met — `internal/recovery/quorum.go`
+      `GuardianSet`/`ThresholdMet`
 
 ### Tests
-- [ ] Split then combine with exactly `m` shares reconstructs the
-      original private key
-- [ ] Combine fails/errors with fewer than `m` shares
-- [ ] Combine with `m` shares from a set of `n > m` (not just the
-      first `m` generated) still reconstructs correctly
-- [ ] NIP-44 encrypt/decrypt round trip for a share, wrong-recipient
-      decrypt fails
-- [ ] `recovery_guardian`/`recovery_confirm` claim construction and
-      verification round-trip (reusing A001's existing Verify path)
-- [ ] Threshold-met detection: quorum reached at exactly `m` distinct
+- [x] Split then combine with exactly `m` shares reconstructs the
+      original private key — `TestSplitCombineExactThreshold`
+- [x] Combine fails/errors with fewer than `m` shares —
+      `TestCombineFailsWithFewerThanThreshold`
+- [x] Combine with `m` shares from a set of `n > m` (not just the
+      first `m` generated) still reconstructs correctly —
+      `TestCombineArbitrarySubset`, `TestCombineWithMoreThanThreshold`
+- [x] NIP-44 encrypt/decrypt round trip for a share, wrong-recipient
+      decrypt fails — `TestEncryptDecryptShareRoundTrip`,
+      `TestDecryptShareWrongRecipientFails`, plus the event-level
+      equivalents `TestBuildAndExtractShareEventRoundTrip`,
+      `TestExtractShareRejectsWrongRecipient`
+- [x] `recovery_guardian`/`recovery_confirm` claim construction and
+      verification round-trip — `TestGuardianClaimRoundTrip`,
+      `TestConfirmClaimRoundTrip`, plus malformed-value rejection tests
+- [x] Threshold-met detection: quorum reached at exactly `m` distinct
       guardians, not reached at `m-1`, and confirms for a *different*
       `group_id`/`recovery_nonce` don't count toward the current
-      attempt's quorum
+      attempt's quorum — `TestThresholdMetAtExactThreshold`,
+      `TestThresholdNotMetBelowThreshold`,
+      `TestThresholdMetIgnoresDuplicateConfirmFromSameGuardian`,
+      `TestThresholdMetIgnoresConfirmFromNonGuardian`,
+      `TestThresholdMetIgnoresConfirmForDifferentAttempt`
 
 ## Log
 
@@ -155,3 +191,40 @@ DM events as the only channel shares travel over. Explicitly scoped
 out any guardian-contact workflow, verifier-side recovery policy, and
 multi-device/FROST hardening — all separate, either out of scope
 entirely or D001-deferred past v1.
+
+2026-09-29 — Implemented. New `internal/recovery` package, four files:
+`shamir.go` (GF(256) split/combine), `share.go` (NIP-44 share
+encryption plus a `kind: 3301` delivery-event wrapper), `claims.go`
+(`recovery_guardian`/`recovery_confirm` construction and parsing), and
+`quorum.go` (guardian-set collection, distinct-guardian threshold
+counting). Two corrections made along the way, both flagged rather
+than silently absorbed:
+1. **Shamir library swap.** `hashicorp/vault/shamir` turned out not to
+   be independently modularized — `go get` pulled in the entire
+   `hashicorp/vault` repository as an indirect dependency and forced a
+   Go toolchain bump (1.24.1 → 1.25.3) just to reach one small,
+   dependency-free algorithm. Reverted that `go.mod`/`go.sum` change
+   and implemented the same GF(256) Shamir construction directly
+   instead — no new dependencies, no toolchain bump, `go.sum` only
+   gained the lightweight `golang.org/x/crypto` package NIP-44 itself
+   already needed.
+2. **`ValidateClaimType` regex bug found and fixed.** D001's own
+   established claim-type vocabulary uses underscores
+   (`recovery_guardian`, `recovery_confirm`), but A001's namespacing
+   regex only allowed hyphens within a label — the design's own
+   canonical claim types would have failed its own validator. Fixed
+   `internal/attestation`'s regex to accept both `-` and `_`, since the
+   underscore convention predates this action and shouldn't be renamed
+   around a validator bug.
+
+Also built one piece beyond the letter of the original Tasks list: a
+concrete `kind: 3301` Nostr event wrapper (`BuildShareEvent`/
+`ExtractShare`) around the raw NIP-44 ciphertext, since the Decisions
+section already committed to "a NIP-44-encrypted direct message
+event," not just an encrypted string — chose a dedicated kind rather
+than reusing kind 4 (NIP-04), since kind 4 implies NIP-04's own,
+different encryption scheme and would mislead a client that tried to
+interpret it per spec. Same live-registry-recheck caveat A001's own
+kind-3300 choice carries. All tests pass, full repo `go build`/`go
+vet`/`go test ./...` clean. Everything this action scoped is done —
+moved to DONE.

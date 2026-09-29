@@ -181,6 +181,19 @@ in [[D001]].
       split/combine, guardian designation, and recovery confirmation
       primitives only (guardian-contact workflow and verifier-side
       recovery policy explicitly deferred)
+- [x] Implement A003 — done 2026-09-29, moved to DONE. New
+      `internal/recovery` package: GF(256) Shamir split/combine,
+      NIP-44 share encryption plus a `kind: 3301` delivery-event
+      wrapper, `recovery_guardian`/`recovery_confirm` claim
+      construction/parsing, distinct-guardian threshold counting. Two
+      corrections made along the way: swapped `hashicorp/vault/shamir`
+      for a direct implementation after discovering it isn't
+      independently modularized (would have pulled the entire
+      `hashicorp/vault` repo and forced a Go toolchain bump); and fixed
+      a real bug in A001's `ValidateClaimType` regex, which rejected
+      D001's own established underscore-containing claim types
+      (`recovery_guardian`/`recovery_confirm`) before this fix. All
+      tests pass, full repo build/vet/test clean.
 - [x] File [[A004]]: payment integration (attestation-cost gateway,
       L402/Aperture) — done 2026-09-29, reuses `cinder`'s D005
       reference architecture; scoped to receipt mint/embed/verify and
@@ -404,3 +417,21 @@ must be 1 or odd-≥3 (D001 never addresses even-panel ties), and a
 four of D001's implementation pieces now have an action filed** —
 A001 (DONE), A002 (DONE), A003, A004, A005 (all PLANNING, not yet
 implemented).
+
+2026-09-29 — Implemented A003, moved to DONE. New `internal/recovery`
+package: GF(256) Shamir split/combine (direct implementation, see
+below), NIP-44 share encryption plus a `kind: 3301` delivery-event
+wrapper, `recovery_guardian`/`recovery_confirm` claim construction and
+parsing, distinct-guardian threshold counting. Two corrections worth
+carrying forward: (1) `hashicorp/vault/shamir` isn't independently
+modularized — importing it pulled in the entire `hashicorp/vault` repo
+and forced a Go toolchain bump (1.24.1 → 1.25.3) for one small,
+dependency-free algorithm, so it was swapped for a direct ~180-line
+implementation instead, no new dependencies; worth remembering before
+reaching for any hashicorp/vault subpackage again in this project.
+(2) A001's `ValidateClaimType` regex only allowed hyphens within a
+label, which would have rejected D001's own established underscore-
+containing claim types (`recovery_guardian`/`recovery_confirm`) —
+fixed to accept both, a fix that affects every future claim_type
+choice, not just this action's two. All tests pass, full repo
+build/vet/test clean.

@@ -167,6 +167,15 @@ in [[D001]].
 - [x] File [[A002]]: relative-trust computation — done 2026-09-28,
       builds on A001, scoped to the web-of-trust graph-weighting
       algorithm only (payment/bond signals explicitly deferred)
+- [x] Implement A002 — done 2026-09-29, moved to DONE. New
+      `internal/trust` package: bounded depth-3 decay-by-half graph
+      walk (testable offline via an injected `EdgeFetcher`), best-path
+      scoring, claim scoring/ranking. Caught and fixed a real bug along
+      the way — relay-side filtering on the multi-character
+      `claim_type` tag isn't reliably indexed by public relays per
+      NIP-01, so that filter moved client-side. All tests pass,
+      including a live trust-edge publish/fetch round trip against
+      `wss://nos.lol`.
 - [ ] File the remaining actions: recovery, payment integration, and
       bonding/slashing all still remain unfiled
 - [ ] Wait on `cinder` actually deploying its own paid tier live
@@ -318,3 +327,20 @@ claim_type separate from content claims, bounded depth-3 propagation
 with per-hop weight halving, caller-supplied seed set, best-path (not
 summed) scoring. Payment-receipt and bond/dispute status as additional
 trust signals explicitly deferred to their own not-yet-filed actions.
+
+2026-09-29 — Implemented A002, moved to DONE. New `internal/trust`
+package. Worth noting for future actions: the graph-walk (`Compute`)
+takes its edge lookup as an injected `EdgeFetcher` function rather than
+calling a relay directly, so the depth/decay/cycle/best-path logic got
+a full offline unit-test suite against synthetic graphs — only the
+real fetch implementation touches the network, and only one dedicated
+live test exercises it. That pattern caught a real bug before it
+shipped quietly: the first cut of the relay query filtered on the
+`claim_type` tag server-side and came back empty against a live
+`nos.lol` query, because NIP-01 only guarantees single-letter tags
+(like `p`) are relay-indexed — a multi-character tag isn't reliably
+filterable server-side across public relays. Fixed by moving that
+filter client-side, after an unfiltered `Kind`+`Authors` relay query.
+Worth remembering for any future relay-side filtering on a
+`persona`-specific tag: single-letter tags only, everything else
+client-side.

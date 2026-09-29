@@ -1,7 +1,7 @@
 ---
 id: A005
 title: Bonding/slashing dispute resolution (dispute type 1 only)
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-29
@@ -114,48 +114,70 @@ layer only, not the money-movement layer**:
   chosen as a starting default, encoded per-bond in `claim_value`
   rather than hardcoded globally, so it's revisitable per-attester
   without a protocol change.
+- **`escrow_ref` parsing found and closed at implementation time**: a
+  colon-delimited `claim_value` breaks if `escrow_ref` itself contains
+  a colon — plausible, since Bitcoin output descriptors can (e.g. key
+  origin info like `[fingerprint/path]xpub...`). Fixed with an anchored
+  regex whose middle capture is greedy (`(.+)`) while the *trailing*
+  fields are constrained to digits-only (`amount_sats`, `window_days`)
+  — this lets `escrow_ref` contain colons freely, since only the
+  digit-only suffix pattern anchors where it ends. Not a design
+  change, just closing a parsing gap the Decisions section's example
+  format didn't anticipate.
 
 ## Tasks
 
 ### Claim types
-- [ ] Define and validate the four claim_type strings (reuses A001's
-      `ValidateClaimType` — no new namespacing code needed)
-- [ ] `claim_value` parse/format helpers for each of the four shapes,
-      with clear errors on malformed values
+- [x] Define and validate the four claim_type strings (reuses A001's
+      `ValidateClaimType`) — `internal/dispute/claims.go`
+- [x] `claim_value` parse/format helpers for each of the four shapes,
+      with clear errors on malformed values — `New*Claim`/`Parse*Claim`
+      pairs, anchored regexes with a greedy middle capture for
+      `escrow_ref` (see Decisions correction)
 
 ### Panel and quorum
-- [ ] Construct/validate an arbiter panel: size 1, or odd ≥ 3
-- [ ] Detect a *confirmed* panel: matching `arbiter_panel` claims from
+- [x] Construct/validate an arbiter panel: size 1, or odd ≥ 3 —
+      `internal/dispute/panel.go` `ValidatePanelSize`
+- [x] Detect a *confirmed* panel: matching `arbiter_panel` claims from
       both the original attester and the challenger for the same
-      `disputed_event_id`
-- [ ] `Resolve(verdicts, confirmedPanel) (winner string, decided bool,
-      error)` — distinct-arbiter counting, strict-majority threshold
+      `disputed_event_id` — `ConfirmedPanel` (most-recent-by-timestamp
+      per side, in case of redesignation)
+- [x] `Resolve(verdicts, disputedEventID, confirmedPanel) (winner
+      Verdict, decided bool, error)` — `internal/dispute/resolve.go`,
+      distinct-arbiter counting, strict-majority threshold
 
 ### Self-release
-- [ ] `IsSelfReleased(bond Claim, now time.Time, challenges []Claim)
-      bool`
-- [ ] Parse the bond's `window_days` and apply it per-bond, not from a
-      hardcoded constant
+- [x] `IsSelfReleased(bond Claim, now time.Time, challenges []Claim)
+      (bool, error)` — `internal/dispute/release.go`
+- [x] Parses the bond's `window_days` per-bond via `ParseBondClaim`,
+      not a hardcoded constant
 
 ### Tests
-- [ ] Claim construction/verification round-trips for all four types
-      (reusing A001's `New`/`Verify`)
-- [ ] Malformed `claim_value` rejected with a clear error, for each
-      type
-- [ ] Panel construction rejects size-0 and even sizes ≥ 2
-- [ ] Panel confirmed only when both sides' claims name the identical
-      arbiter set for the identical dispute; mismatched or one-sided
-      panels are not confirmed
-- [ ] `Resolve`: unanimous 1-arbiter panel decides immediately;
+- [x] Claim construction/verification round-trips for all four types
+      — `TestBondClaimRoundTrip`, `TestChallengeClaimRoundTrip`,
+      `TestPanelClaimRoundTrip`, `TestVerdictClaimRoundTrip`
+- [x] Malformed `claim_value` rejected with a clear error, for each
+      type — the four `Test*RejectsMalformedValue` tests, plus
+      `TestBondClaimEscrowRefMayContainColons` for the colon-parsing
+      correction
+- [x] Panel construction rejects size-0 and even sizes ≥ 2 —
+      `TestValidatePanelSize`, `TestNewPanelClaimRejectsInvalidSize`
+- [x] Panel confirmed only when both sides' claims name the identical
+      arbiter set for the identical dispute — `TestConfirmedPanel*`
+      (both-agree, mismatched, one-sided)
+- [x] `Resolve`: unanimous 1-arbiter panel decides immediately;
       3-arbiter panel needs 2 matching votes, not decided at 1-1;
       duplicate verdicts from the same arbiter don't count twice;
       a verdict from outside the confirmed panel doesn't count at all
-- [ ] `IsSelfReleased`: true after the window with no challenge, false
+      — `TestResolveSingleArbiterDecidesImmediately`,
+      `TestResolveThreeArbiterPanelNeedsTwoVotes`,
+      `TestResolveDuplicateVerdictFromSameArbiterDoesNotCountTwice`,
+      `TestResolveIgnoresVerdictFromOutsidePanel`
+- [x] `IsSelfReleased`: true after the window with no challenge, false
       before the window, false at any time once a matching challenge
-      exists — regardless of whether that challenge was ever resolved
-      (self-release is about "was it ever challenged," not "was the
-      challenge upheld" — an open, unresolved dispute must not
-      self-release out from under an active arbitration)
+      exists regardless of resolution — `TestIsSelfReleasedTrue*`,
+      `TestIsSelfReleasedFalse*` (5 tests covering window timing,
+      challenged/unresolved, and unrelated-event isolation)
 
 ## Log
 
@@ -176,3 +198,23 @@ made explicitly rather than left silently assumed: panel size must be
 action refuses to invent one), and a 14-day self-release window as a
 starting default, encoded per-bond so it's revisitable without a
 protocol change.
+
+2026-09-29 — Implemented. New `internal/dispute` package, four files:
+`claims.go` (the four claim types, `New*Claim`/`Parse*Claim` pairs),
+`panel.go` (`ValidatePanelSize`, `ConfirmedPanel`), `resolve.go`
+(`Resolve`), `release.go` (`IsSelfReleased`). One real parsing gap
+found and closed: the Decisions section's colon-delimited
+`claim_value` format breaks if `escrow_ref` itself contains a colon —
+plausible for Bitcoin descriptors (e.g. `[fingerprint/path]xpub...`
+key-origin syntax). Fixed with anchored regexes whose middle capture
+is greedy while the *trailing* fields are constrained to digits-only,
+so `escrow_ref` can safely contain colons — confirmed directly with
+`TestBondClaimEscrowRefMayContainColons`. No corrections needed
+elsewhere; `ConfirmedPanel` additionally picks the most-recently-
+timestamped claim per side in case of redesignation, a small
+robustness detail beyond the letter of the original Tasks list. 24 new
+tests, full repo build/vet/test clean. Everything this action scoped
+is done — moved to DONE. **A001-A005 are now all DONE and
+implemented** — the only work D001 still names as unbuilt is the
+Bitcoin-escrow settlement follow-up this action deliberately deferred
+(script construction/funding/on-chain verification), still unfiled.

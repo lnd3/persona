@@ -25,8 +25,12 @@ const Kind = 3300
 // claimTypeRE enforces D001's reverse-domain namespacing convention
 // for claim_type (e.g. "org.solemn.skill.rust"): at least two
 // lowercase, dot-separated labels, so minting a new claim_type never
-// collides with anyone else's without needing a registry to prevent it.
-var claimTypeRE = regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*(\.[a-z0-9]+(-[a-z0-9]+)*)+$`)
+// collides with anyone else's without needing a registry to prevent
+// it. Labels may use hyphens or underscores — underscores specifically
+// so D001's own established vocabulary (recovery_guardian,
+// recovery_confirm) validates without renaming it; this was found and
+// fixed at A003 implementation time (see plan/actions/A003's Log).
+var claimTypeRE = regexp.MustCompile(`^[a-z0-9]+([_-][a-z0-9]+)*(\.[a-z0-9]+([_-][a-z0-9]+)*)+$`)
 
 // ErrInvalidClaimType is returned when a claim_type isn't
 // reverse-domain namespaced per D001's governance resolution.

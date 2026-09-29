@@ -161,44 +161,16 @@ func multisigWitness(t *testing.T, tx *wire.MsgTx, sigHashes *txscript.TxSigHash
 	return w
 }
 
-func TestLargeTierEscalatedScript_BothArbitersRequired(t *testing.T) {
-	arbiterA, arbiterAPub := newTestKey(t)
-	arbiterB, arbiterBPub := newTestKey(t)
-
-	witnessScript, err := LargeTierEscalatedScript(arbiterAPub, arbiterBPub)
-	if err != nil {
-		t.Fatalf("LargeTierEscalatedScript: %v", err)
-	}
-	scriptPubKey, err := WitnessScriptHash(witnessScript)
-	if err != nil {
-		t.Fatalf("WitnessScriptHash: %v", err)
-	}
-
-	t.Run("both sign: succeeds", func(t *testing.T) {
-		tx := buildSpendingTx(0)
-		fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
-		sigHashes := txscript.NewTxSigHashes(tx, fetcher)
-		tx.TxIn[0].Witness = multisigWitness(t, tx, sigHashes, witnessScript, arbiterA, arbiterB)
-		if err := execute(t, scriptPubKey, tx); err != nil {
-			t.Errorf("expected both-arbiters spend to succeed, got: %v", err)
-		}
-	})
-
-	t.Run("only one signs: fails", func(t *testing.T) {
-		tx := buildSpendingTx(0)
-		fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
-		sigHashes := txscript.NewTxSigHashes(tx, fetcher)
-		w := wire.TxWitness{{}}
-		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, arbiterA)
-		if err != nil {
-			t.Fatalf("RawTxInWitnessSignature: %v", err)
-		}
-		w = append(w, sig, witnessScript)
-		tx.TxIn[0].Witness = w
-		if err := execute(t, scriptPubKey, tx); err == nil {
-			t.Error("expected a single appointed arbiter to be unable to move the escalated output alone")
-		}
-	})
+// withSelectors removes witnessScript (the trailing element of w),
+// appends the OP_IF selectors in innermost-to-outermost order (since
+// the outermost OP_IF executes first and therefore must pop the
+// topmost — i.e. last-pushed-before-the-script — witness item), then
+// re-appends witnessScript.
+func withSelectors(w wire.TxWitness, selectors ...[]byte) wire.TxWitness {
+	script := w[len(w)-1]
+	out := append(wire.TxWitness{}, w[:len(w)-1]...)
+	out = append(out, selectors...)
+	return append(out, script)
 }
 
 func TestTieBreakScript_AnyTwoOfThreeSettle(t *testing.T) {
@@ -231,92 +203,185 @@ func TestTieBreakScript_AnyTwoOfThreeSettle(t *testing.T) {
 	}
 }
 
-func TestSmallTierEscalatedScript_MutualSettlementPath(t *testing.T) {
+func TestUniversalScript_AllFourBranches(t *testing.T) {
 	attester, attesterPub := newTestKey(t)
-	challenger, challengerPub := newTestKey(t)
-	_, arbiterPub := newTestKey(t)
-
-	witnessScript, err := SmallTierEscalatedScript(attesterPub, challengerPub, arbiterPub)
+	subject, subjectPub := newTestKey(t)
+	arbiter, arbiterPub := newTestKey(t)
+	sequence, err := SequenceForDays(14)
 	if err != nil {
-		t.Fatalf("SmallTierEscalatedScript: %v", err)
+		t.Fatalf("SequenceForDays: %v", err)
+	}
+
+	witnessScript, err := UniversalScript(attesterPub, subjectPub, arbiterPub, sequence)
+	if err != nil {
+		t.Fatalf("UniversalScript: %v", err)
 	}
 	scriptPubKey, err := WitnessScriptHash(witnessScript)
 	if err != nil {
 		t.Fatalf("WitnessScriptHash: %v", err)
 	}
 
-	tx := buildSpendingTx(0)
-	fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
-	sigHashes := txscript.NewTxSigHashes(tx, fetcher)
-	w := multisigWitness(t, tx, sigHashes, witnessScript, attester, challenger)
-	// Insert the IF-branch selector (true) just below the witness
-	// script, which multisigWitness already appended last.
-	selector := w[len(w)-1]
-	w[len(w)-1] = []byte{1}
-	w = append(w, selector)
-	tx.TxIn[0].Witness = w
-
-	if err := execute(t, scriptPubKey, tx); err != nil {
-		t.Errorf("expected 2-of-2 mutual settlement to succeed, got: %v", err)
+	newTx := func(seq uint32) (*wire.MsgTx, *txscript.TxSigHashes) {
+		tx := buildSpendingTx(seq)
+		fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
+		return tx, txscript.NewTxSigHashes(tx, fetcher)
 	}
+
+	t.Run("branch 1: mutual settlement, any time, no timelock needed", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, attester, subject)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected mutual settlement to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 2: arbiter sides with attester", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, attester, arbiter)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected attester+arbiter to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 3: arbiter sides with subject", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, subject, arbiter)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected subject+arbiter to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 4: last resort, self-release after window, nobody engaged", func(t *testing.T) {
+		tx, sigHashes := newTx(sequence)
+		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, attester)
+		if err != nil {
+			t.Fatalf("RawTxInWitnessSignature: %v", err)
+		}
+		tx.TxIn[0].Witness = withSelectors(wire.TxWitness{sig, witnessScript}, selFalse, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected self-release fallback to succeed after the window, got: %v", err)
+		}
+	})
+
+	t.Run("branch 4 fails before the window", func(t *testing.T) {
+		tx, sigHashes := newTx(sequence - 1)
+		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, attester)
+		if err != nil {
+			t.Fatalf("RawTxInWitnessSignature: %v", err)
+		}
+		tx.TxIn[0].Witness = withSelectors(wire.TxWitness{sig, witnessScript}, selFalse, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err == nil {
+			t.Error("expected self-release fallback to fail before the window has elapsed")
+		}
+	})
+
+	t.Run("arbiter alone cannot satisfy any branch", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, arbiter)
+		if err != nil {
+			t.Fatalf("RawTxInWitnessSignature: %v", err)
+		}
+		tx.TxIn[0].Witness = withSelectors(wire.TxWitness{sig, witnessScript}, selFalse, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err == nil {
+			t.Error("expected the arbiter alone to be unable to satisfy the fallback (attester-only) branch")
+		}
+	})
+
+	t.Run("attester alone cannot take the mutual-settlement branch", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, attester)
+		if err != nil {
+			t.Fatalf("RawTxInWitnessSignature: %v", err)
+		}
+		tx.TxIn[0].Witness = withSelectors(wire.TxWitness{{}, sig, witnessScript}, selTrue)
+		if err := execute(t, scriptPubKey, tx); err == nil {
+			t.Error("expected attester alone to be unable to satisfy the 2-of-2 mutual-settlement branch")
+		}
+	})
 }
 
-func TestSmallTierEscalatedScript_ArbiterFallbackPath(t *testing.T) {
-	_, attesterPub := newTestKey(t)
-	_, challengerPub := newTestKey(t)
-	arbiter, arbiterPub := newTestKey(t)
-
-	witnessScript, err := SmallTierEscalatedScript(attesterPub, challengerPub, arbiterPub)
+func TestReinforcedScript_AllFiveBranches(t *testing.T) {
+	attester, attesterPub := newTestKey(t)
+	subject, subjectPub := newTestKey(t)
+	arbiterA, arbiterAPub := newTestKey(t) // attester's own standing arbiter
+	arbiterB, arbiterBPub := newTestKey(t) // subject's own standing arbiter
+	sequence, err := SequenceForDays(14)
 	if err != nil {
-		t.Fatalf("SmallTierEscalatedScript: %v", err)
+		t.Fatalf("SequenceForDays: %v", err)
+	}
+
+	witnessScript, err := ReinforcedScript(attesterPub, subjectPub, arbiterAPub, arbiterBPub, sequence)
+	if err != nil {
+		t.Fatalf("ReinforcedScript: %v", err)
 	}
 	scriptPubKey, err := WitnessScriptHash(witnessScript)
 	if err != nil {
 		t.Fatalf("WitnessScriptHash: %v", err)
 	}
 
-	tx := buildSpendingTx(0)
-	fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
-	sigHashes := txscript.NewTxSigHashes(tx, fetcher)
-	sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, arbiter)
-	if err != nil {
-		t.Fatalf("RawTxInWitnessSignature: %v", err)
-	}
-	// ELSE branch: just the arbiter's signature, then the false
-	// selector, then the witness script.
-	tx.TxIn[0].Witness = wire.TxWitness{sig, {}, witnessScript}
-
-	if err := execute(t, scriptPubKey, tx); err != nil {
-		t.Errorf("expected arbiter-fallback spend to succeed, got: %v", err)
-	}
-}
-
-func TestSmallTierEscalatedScript_ArbiterAloneCannotTakeMutualPath(t *testing.T) {
-	_, attesterPub := newTestKey(t)
-	_, challengerPub := newTestKey(t)
-	arbiter, arbiterPub := newTestKey(t)
-
-	witnessScript, err := SmallTierEscalatedScript(attesterPub, challengerPub, arbiterPub)
-	if err != nil {
-		t.Fatalf("SmallTierEscalatedScript: %v", err)
-	}
-	scriptPubKey, err := WitnessScriptHash(witnessScript)
-	if err != nil {
-		t.Fatalf("WitnessScriptHash: %v", err)
+	newTx := func(seq uint32) (*wire.MsgTx, *txscript.TxSigHashes) {
+		tx := buildSpendingTx(seq)
+		fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
+		return tx, txscript.NewTxSigHashes(tx, fetcher)
 	}
 
-	tx := buildSpendingTx(0)
-	fetcher := txscript.NewCannedPrevOutputFetcher(scriptPubKey, testAmount)
-	sigHashes := txscript.NewTxSigHashes(tx, fetcher)
-	sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, arbiter)
-	if err != nil {
-		t.Fatalf("RawTxInWitnessSignature: %v", err)
-	}
-	// Try to take the IF (mutual-settlement) branch with only the
-	// arbiter's signature standing in for the 2-of-2 — must fail.
-	tx.TxIn[0].Witness = wire.TxWitness{{}, sig, {1}, witnessScript}
+	t.Run("branch 1: mutual settlement", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, attester, subject)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected mutual settlement to succeed, got: %v", err)
+		}
+	})
 
-	if err := execute(t, scriptPubKey, tx); err == nil {
-		t.Error("expected the arbiter alone to be unable to satisfy the 2-of-2 mutual-settlement branch")
-	}
+	t.Run("branch 2: both independent arbiters agree, no disputant needed", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, arbiterA, arbiterB)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected both-arbiters-agree to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 3: attester's own arbiter sides with attester", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, attester, arbiterA)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected attester+own-arbiter to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 4: subject's own arbiter sides with subject", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, subject, arbiterB)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected subject+own-arbiter to succeed, got: %v", err)
+		}
+	})
+
+	t.Run("branch 5: last-resort self-release after window", func(t *testing.T) {
+		tx, sigHashes := newTx(sequence)
+		sig, err := txscript.RawTxInWitnessSignature(tx, sigHashes, 0, testAmount, witnessScript, txscript.SigHashAll, attester)
+		if err != nil {
+			t.Fatalf("RawTxInWitnessSignature: %v", err)
+		}
+		tx.TxIn[0].Witness = withSelectors(wire.TxWitness{sig, witnessScript}, selFalse, selFalse, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err != nil {
+			t.Errorf("expected self-release fallback to succeed after the window, got: %v", err)
+		}
+	})
+
+	t.Run("cross-pairing fails: attester + subject's own arbiter", func(t *testing.T) {
+		tx, sigHashes := newTx(0)
+		w := multisigWitness(t, tx, sigHashes, witnessScript, attester, arbiterB)
+		tx.TxIn[0].Witness = withSelectors(w, selTrue, selFalse, selFalse)
+		if err := execute(t, scriptPubKey, tx); err == nil {
+			t.Error("expected attester paired with subject's own arbiter to fail on the attester-arbiter branch")
+		}
+	})
 }

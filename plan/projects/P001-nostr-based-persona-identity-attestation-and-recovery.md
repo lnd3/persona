@@ -605,3 +605,26 @@ here), non-escalation detection, and the mainnet security-review gate
 all remain, named precisely in A006's own Tasks list rather than
 glossed over — this is the fund-loss-risk action D001 and A005 both
 flagged, and it's being treated with the caution that implies.
+
+2026-09-30 — Building A006's PSBT helpers surfaced a second, more
+serious bug: the escalation-based design's CSV timelock blocked *any*
+early spend, including legitimate cooperative escalation, and never
+actually tied a post-timelock spend to any dispute outcome — the bond
+provided no real enforcement. Seriously considered moving the escrow
+layer to a smart-contract chain (researched Hyperliquid's HyperEVM
+concretely: 24 validators, real bridge-risk numbers — >$2.8B stolen
+since 2022) before concluding no chain's consensus can adjudicate the
+dispute's actual substance anyway, and Kleros's juror-pool model is
+exactly the crowdsourced-court pattern D001 already rejected. Redesigned
+on Bitcoin instead, around the insight that the disputed attestation
+already names its own subject_key — the "future" counterparty was
+never actually unknown, only the arbiter was. New `UniversalScript`/
+`ReinforcedScript` (upfront.go): a single static script per bond, no
+escalation transaction ever, with a *standing* (not per-bond)
+`arbiter_commitment` claim closing the one genuinely-unknown-upfront
+piece. Built the PSBT settlement helpers this was originally about,
+now much smaller since there's no escalation chain to construct. Full
+build→sign→finalize→extract→re-validate round trips pass against the
+real consensus engine. 110 tests total, full repo clean. Still not
+DONE: a real `ChainQuerier` backend and the mainnet security-review
+gate.

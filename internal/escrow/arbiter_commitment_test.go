@@ -13,9 +13,8 @@ func TestArbiterCommitmentClaimRoundTrip(t *testing.T) {
 		t.Fatalf("identity.New: %v", err)
 	}
 	_, arbiterPub := newTestKey(t)
-	fundingEventID := owner.PublicKey // any 64-hex-char stand-in works
 
-	evt, err := NewArbiterCommitmentClaim(owner, fundingEventID, arbiterPub)
+	evt, err := NewArbiterCommitmentClaim(owner, arbiterPub)
 	if err != nil {
 		t.Fatalf("NewArbiterCommitmentClaim: %v", err)
 	}
@@ -31,9 +30,6 @@ func TestArbiterCommitmentClaimRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseArbiterCommitmentClaim: %v", err)
 	}
-	if commitment.FundingEventID != fundingEventID {
-		t.Errorf("FundingEventID = %s, want %s", commitment.FundingEventID, fundingEventID)
-	}
 	if string(commitment.ArbiterPubKey) != string(arbiterPub) {
 		t.Errorf("ArbiterPubKey = %x, want %x", commitment.ArbiterPubKey, arbiterPub)
 	}
@@ -44,7 +40,7 @@ func TestNewArbiterCommitmentClaimRejectsInvalidPubKey(t *testing.T) {
 	if err != nil {
 		t.Fatalf("identity.New: %v", err)
 	}
-	if _, err := NewArbiterCommitmentClaim(owner, owner.PublicKey, []byte{0x01}); err == nil {
+	if _, err := NewArbiterCommitmentClaim(owner, []byte{0x01}); err == nil {
 		t.Fatal("expected error for a malformed arbiter pubkey")
 	}
 }

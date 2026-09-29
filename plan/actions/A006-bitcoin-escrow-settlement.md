@@ -100,23 +100,49 @@ not reimplement).
     — it just self-returns to them too, since it was never actually
     joint until escalation completed.
 
-  **Larger bonds — each side pre-commits their own arbiter, upfront,
-  independently.** For this tier, cooperative escalation isn't
-  sufficient on its own: whoever expects to lose an arbitration can
-  simply refuse to cooperate with *any* escalation step, and a
-  "requirement" that depends on the other side's cooperation isn't
-  actually a requirement. So for bonds above the threshold, each
-  party's *own* output — funded on their *own* initiative, no
-  cooperation needed — already commits to an arbitration path from
-  the start: `(owner alone, after window_days)` OR `(owner's own
-  chosen arbiter + a counterpart signer)`. The attester picks their
-  arbiter when posting the bond; the challenger independently picks
-  theirs when posting the stake. A real resolution spends *both*
-  outputs in one transaction, each satisfied via its own arbitration
-  branch — so either side can always invoke arbitration on their own
-  funds, unilaterally, and neither side's pick can dominate the
-  outcome alone, since a genuine settlement needs both appointed
-  arbiters to actually agree.
+  **Larger bonds — each side independently pre-commits their own
+  arbiter's *identity*, upfront; the escalation *mechanics* still need
+  one cooperative step — corrected 2026-09-29, see Log.** The original
+  version of this decision claimed each party's own output "already
+  commits to an arbitration path from the start," baked into the
+  script at funding time. **That was wrong, caught while actually
+  implementing it**: a Bitcoin script's public keys are fixed the
+  moment an output is created and can never be added later. The
+  attester's bond is created *first*, before any challenger (and
+  therefore any second arbiter) exists — so the bond's own output
+  structurally cannot name a key that doesn't exist yet, the same
+  chicken-and-egg problem this whole action started from, one level
+  down. The obvious patch — let each side's *own* appointed arbiter
+  alone move that side's output — was checked and rejected too: it's
+  insecure, not just simpler, since an owner and their own hand-picked
+  arbiter could then always collude to return funds to the owner
+  regardless of the actual dispute, exactly the check requiring *both*
+  arbiters to agree exists to prevent.
+  - **What's actually achievable, split honestly into two parts**:
+    - *Pre-committed, immutable arbiter identity* — each side still
+      independently picks their own arbiter, at funding time, and that
+      choice can never be swapped or haggled over later. This part
+      genuinely needs no cooperation and is published as its own
+      claim (see Decisions below) rather than baked into the escrow
+      script itself, since the script can't hold a key that doesn't
+      exist yet regardless.
+    - *Escalation into joint arbiter custody still needs one
+      cooperative step* — moving self-custodied funds into a jointly-
+      controlled output needs each owner's own signature on their own
+      output, exactly the same shape (and the same residual
+      non-cooperation risk) as the small-bond tier's escalation.
+      Bitcoin's own constraints make this unavoidable; no clever
+      scripting removes it.
+  - **What this tier still actually buys, stated honestly rather than
+    reasserting the original overclaim**: once *both* sides have
+    escalated, resolution power sits *entirely* with the two
+    pre-committed arbiters — unlike the small-bond tier, there is no
+    2-of-2 mutual-settlement path back to the disputants themselves,
+    so once escalated, neither party can further stall or renegotiate
+    the outcome. The value is a decisive, un-renegotiable process and
+    an arbiter choice that can't be haggled over after the fact — not
+    "arbitration with zero cooperation ever required," which isn't
+    actually achievable here.
   - **Not the same thing as the rejected pre-designated mediator**,
     despite also being chosen "upfront": the earlier rejection was
     specifically about *one shared judge*, unilaterally imposed by
@@ -124,13 +150,26 @@ not reimplement).
     appointing their *own* representative over their *own* funds only
     — structurally more like each side hiring their own lawyer than
     one side picking a shared arbitrator for both.
+  - **New claim type: `net.persona.core.arbiter_commitment`** — reuses
+    A001's attestation primitive again rather than inventing a
+    separate durable-record mechanism, consistent with A003/A005's own
+    "X is just an attestation" precedent. Attester = the bond or
+    challenge owner, subject = themself, `claim_value` =
+    `"<bond_or_challenge_event_id>:<arbiter_pubkey>"`, published
+    alongside the bond/challenge event. This is an addition to A005's
+    protocol layer, not a change to any of A005's already-shipped
+    claim types (`bond`/`dispute_challenge` keep their existing
+    `claim_value` shape unchanged) — a deliberate choice to avoid
+    reopening a DONE action's format for something that can just as
+    well be a companion claim.
   - **Tie-break when the two appointed arbiters disagree — decided
     2026-09-29: they jointly escalate to a third arbiter, using the
     same joint signing power they already have.** No new key needs to
-    be pre-committed at bond-creation time to make this work: `arbiter_A`
-    and `arbiter_B` already jointly control the arbitration branch (it
-    takes both of them to move the funds at all), so instead of using
-    that joint power to decide the dispute's substance, they can use
+    be pre-committed upfront to make this work: once escalation has
+    happened, `arbiter_A` and `arbiter_B` already jointly control the
+    resulting joint output (it takes both of them to move the funds at
+    all), so instead of using that joint power to decide the dispute's
+    substance, they can use
     the identical power procedurally — cooperatively constructing (via
     PSBT, same tool already chosen) a transaction that moves both
     outputs into a fresh 2-of-3 output naming themselves plus a
@@ -235,17 +274,23 @@ not reimplement).
       `Resolve` reports a decision from the single confirmed arbiter
 
 ### Larger-bond tier: independent upfront arbiter commitments
-- [ ] Extend the bond/stake output scripts for this tier with a second
-      spending path: `owner's own chosen arbiter key + a counterpart
-      signer` — committed at funding time, independently by each side
-- [ ] Construct the joint settlement transaction spending both outputs
-      together, each via its own arbitration branch, once both
-      appointed arbiters agree on a split
+- [ ] Define and validate the `net.persona.core.arbiter_commitment`
+      claim_type (reuses A001's `ValidateClaimType` — no new
+      namespacing code needed), published by each side at their own
+      funding time, immutable once published
+- [ ] On challenge, cooperatively construct (via PSBT) a fresh joint
+      output naming both sides' already-committed arbiters, 2-of-2 —
+      the same cooperative-escalation shape as the small-bond tier,
+      just with the arbiter identities pre-fixed rather than
+      negotiated at escalation time, and no direct 2-of-2
+      mutual-settlement path back to the disputants themselves
+- [ ] Settlement: spend the escalated 2-of-2 output once both
+      pre-committed arbiters agree on a split
 - [ ] Tie-break: given the two appointed arbiters disagree, construct
       (via PSBT, cooperatively between just the two arbiters) the
-      escalation transaction moving both outputs into a fresh 2-of-3
-      output naming both original arbiters plus a jointly-nominated
-      third; settle once any 2-of-3 agree
+      escalation transaction moving the joint output into a fresh
+      2-of-3 output naming both original arbiters plus a
+      jointly-nominated third; settle once any 2-of-3 agree
 
 ### Settlement (shared)
 - [ ] Given `dispute.IsSelfReleased` = true (never escalated, either
@@ -262,19 +307,20 @@ not reimplement).
       once `ConfirmedPanel`/`Resolve` actually agree; a non-cooperating
       party blocks escalation entirely (confirms the residual risk is
       real and structural, not just theoretical)
-- [ ] Larger-bond tier: each side's arbitration branch spends only
-      with that side's own appointed arbiter's signature; a joint
-      settlement requires both; a lone appointed arbiter cannot move
-      the *other* side's output
+- [ ] Larger-bond tier: `arbiter_commitment` claim construction/
+      verification round-trip; the escalated 2-of-2 output spends only
+      with *both* pre-committed arbiters' signatures — a lone appointed
+      arbiter cannot move it alone (confirms the collusion concern the
+      corrected design exists to close); a non-cooperating disputant
+      blocks escalation entirely, same residual as the small-bond tier
 - [ ] Larger-bond tier tie-break: the two appointed arbiters
-      disagreeing blocks direct settlement; the escalation transaction
-      to a 2-of-3 with a third arbiter succeeds only with both
-      original arbiters' cooperation; once escalated, any 2 of the 3
-      (in any combination) can settle — confirming no fourth arbiter
-      is ever structurally needed; the two arbiters refusing to
+      disagreeing blocks direct settlement of the escalated output; the
+      further escalation to a 2-of-3 with a third arbiter succeeds only
+      with both original arbiters' cooperation; once escalated, any 2
+      of the 3 (in any combination) can settle — confirming no fourth
+      arbiter is ever structurally needed; the two arbiters refusing to
       escalate at all leaves each side's pre-escalation timelock
-      fallback as the only path, same as the small-bond tier's
-      non-cooperation case
+      fallback as the only path
 - [ ] Funding-verification tests against a regtest node: unfunded,
       underfunded, and correctly-funded cases
 
@@ -371,3 +417,34 @@ in this plan, so no new residual risk was introduced, just extended
 the existing one. Rejected pre-committing a third key upfront and
 per-side small panels (neither actually eliminates ties structurally).
 Tasks and Tests updated to reflect the concrete escalation mechanism.
+
+2026-09-29 — Corrected a real bug in the larger-bond tier's design,
+caught while actually implementing the pre-escalation output rather
+than left to surface later. The committed decision claimed each
+side's output "already commits to an arbitration path from the start"
+at funding time — false: a Bitcoin script's keys are fixed the moment
+an output is created and can never be added later, and the attester's
+bond is created before any challenger (or their arbiter) exists, so it
+structurally cannot name a key that doesn't exist yet — the same
+chicken-and-egg problem this action started from, one level down.
+Checked the obvious patch (let each side's own arbiter move that
+side's output alone) and rejected it too: it's insecure, since an
+owner and their own hand-picked arbiter could then collude to return
+funds to the owner regardless of the actual dispute, exactly what
+requiring both arbiters to agree exists to prevent. Split the decision
+honestly into what's actually achievable: pre-committed, immutable
+arbiter *identity* (published via a new `net.persona.core.
+arbiter_commitment` claim, an addition to A005's protocol layer, not
+a change to A005's already-shipped claim types) needs no cooperation
+and is achievable upfront; actually escalating into joint arbiter
+custody still needs one cooperative step, the same shape and the same
+residual non-cooperation risk as the small-bond tier's escalation —
+Bitcoin's own constraints make this unavoidable, no clever scripting
+removes it. Restated honestly what this tier actually buys: once
+escalated, resolution sits entirely with the two pre-committed
+arbiters with no path back to the disputants, a decisive process and
+an arbiter choice that can't be haggled over later — not "zero
+cooperation ever required," which was the overclaim. Tasks and Tests
+updated to match; the shared pre-escalation output section already
+described the correct (single-path, identical-across-tiers) script and
+needed no change.

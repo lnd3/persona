@@ -51,67 +51,97 @@ not reimplement).
 
 ## Decisions made here (not in D001 — concrete choices this action owns)
 
-- **Voluntary escalation into joint custody upon challenge, not a
-  pre-designated mediator — decided 2026-09-29.** Filing this action
-  surfaced a real structural tension D001's "simple n-of-m multisig"
-  framing glossed over: the arbiter panel is chosen *after* a dispute
-  arises (per D001 and A005's `ConfirmedPanel`), but a spendable
+- **The escrow structure is two-tiered, matching D001's own small/
+  larger-bond distinction (A005 already left the exact sats threshold
+  as a caller policy call) — decided 2026-09-29, refined across three
+  passes below.** Filing this action first surfaced a structural
+  tension D001's "simple n-of-m multisig" framing glossed over: an
+  arbiter panel is chosen *after* a dispute arises, but a spendable
   Bitcoin script has to be constructed *before* anyone knows who will
-  spend from it — a bond sits on-chain, potentially for a long time,
-  before any challenge (and therefore any panel) exists.
-  - **The pre-designated-mediator alternative was rejected, not just
-    set aside.** The well-trodden real-world pattern (2-of-3: payer,
-    payee, a pre-agreed mediator key) requires naming the mediator at
-    bond-creation time — but the challenger doesn't exist yet then, so
-    the attester alone would be choosing who gets to judge disputes
-    against themselves. That's not a minor limitation to route around;
-    it's a direct regression against D001's own founding principle
-    (never let one party unilaterally pick the authority that
-    adjudicates them) — the exact single-point-of-capture failure the
-    whole relative-trust model exists to avoid. Rejected on principle,
-    not just on inconvenience.
-  - **How escalation actually works**: a bond starts as a plain
-    timelocked output — attester spends alone after `window_days`, no
-    multisig at all, since there's no counterparty yet. Symmetrically,
-    a challenger's stake is *also* just their own timelocked
-    self-custody output from the moment they challenge — not
-    automatically joint with anything. Only once a panel is
-    **confirmed** (`ConfirmedPanel`, both sides agreeing) do the
-    attester and challenger cooperatively construct and fund a new
-    n-of-m output naming that panel, moving both the bond and the
-    stake into it before the attester's original timelock expires.
-  - **This meaningfully improves the risk profile of the whole
-    action, not just resolves the selection problem.** Before any
-    escalation, both parties' funds sit in pure single-party
-    self-custody — a bug there can at worst delay someone reclaiming
-    their *own* money, never let the other party (or anyone else) take
-    it. The genuinely dangerous multisig code — where a bug really
-    could misdirect someone's funds — only gets constructed and
-    exercised on actual disputes, not on every bond ever created. A
-    materially smaller, later-triggered, more reviewable surface than
-    "every bond has a live multisig from day one."
-  - **Residual risk, stated honestly rather than glossed over**: an
-    attester can refuse to cooperate with escalation and simply wait
-    out their own timelock to reclaim their bond unilaterally — no
-    script can force cooperation, since forcing it would require
-    exactly the pre-committed keys the rejected alternative needed.
-    This is **not resolved cryptographically, only reputationally**:
-    a verifier checking a subject's bond status treats "challenged,
-    never escalated within a reasonable window" as equivalent to (or
-    worse than) losing the dispute outright, per D001's own
-    relative-trust posture — the same move D001 already made honestly
-    for GDPR erasure (crypto-shredding isn't literal erasure, but the
-    best achievable given the real constraint, stated openly rather
-    than marketed around). The challenger's own stake is never at risk
-    from this defection — it just self-returns to them too, since it
-    was never actually joint until escalation completed.
-  - **Operational consequence**: `window_days` (A005's own per-bond
-    field) must be set comfortably longer than the realistic
-    real-world time to confirm a panel and construct a joint
-    escalation transaction — otherwise "escalate before the timelock
-    expires" becomes impractical rather than merely inconvenient. Not
-    a new claim_value field; a deployment/product guidance note for
-    whatever sets `window_days` when a bond is created.
+  spend from it. Working through that produced two genuinely different
+  answers for the two cases D001 already distinguishes, not one
+  answer that fits both:
+
+  **Small bonds — cooperative escalation, mutual settlement first.**
+  A bond starts as a plain timelocked output: attester spends alone
+  after `window_days`, no multisig at all, since there's no
+  counterparty yet. A challenger's stake is symmetrically just their
+  own timelocked self-custody output. Only on a challenge do the two
+  parties cooperatively escalate into a joint output — but that joint
+  output's *first* spending path is a plain **2-of-2 mutual
+  settlement** (any split either side actually agrees to), available
+  immediately, no panel needed: most disputes between two people who
+  both have real money on the line resolve by direct agreement once a
+  challenge forces the conversation, and D001 itself says a single
+  mutually-agreed arbiter is "enough" for this tier — third-party
+  adjudication should be the fallback for the minority that can't
+  agree, not the default path. Only if 2-of-2 settlement fails does a
+  *second* cooperative move (agreeing "let an arbiter decide" is a much
+  lower-friction ask than agreeing on a number) hand it to a
+  mutually-picked single arbiter, per `ConfirmedPanel`.
+  - *Rejected for this tier*: a pre-designated mediator chosen at
+    bond-creation time. The well-trodden real-world pattern (2-of-3:
+    payer, payee, a pre-agreed mediator) requires naming the mediator
+    before the challenger exists — meaning the attester alone would be
+    choosing who judges disputes against themselves. Rejected on
+    principle, not inconvenience: a direct regression against D001's
+    founding "never let one party unilaterally pick their own judge"
+    rule, the exact single-point-of-capture failure the relative-trust
+    model exists to avoid.
+  - *Residual risk, stated honestly*: an attester can refuse to
+    cooperate with escalation at all and simply wait out their own
+    timelock to reclaim their bond unilaterally — no script can force
+    cooperation without reintroducing the pre-committed-authority
+    problem just rejected. **Not resolved cryptographically, only
+    reputationally**: a verifier treats "challenged, never escalated"
+    as at least as bad as losing the dispute outright, the same
+    technical-limit-to-social-enforcement move D001 already made for
+    GDPR erasure. The challenger's own stake is never at risk from this
+    — it just self-returns to them too, since it was never actually
+    joint until escalation completed.
+
+  **Larger bonds — each side pre-commits their own arbiter, upfront,
+  independently.** For this tier, cooperative escalation isn't
+  sufficient on its own: whoever expects to lose an arbitration can
+  simply refuse to cooperate with *any* escalation step, and a
+  "requirement" that depends on the other side's cooperation isn't
+  actually a requirement. So for bonds above the threshold, each
+  party's *own* output — funded on their *own* initiative, no
+  cooperation needed — already commits to an arbitration path from
+  the start: `(owner alone, after window_days)` OR `(owner's own
+  chosen arbiter + a counterpart signer)`. The attester picks their
+  arbiter when posting the bond; the challenger independently picks
+  theirs when posting the stake. A real resolution spends *both*
+  outputs in one transaction, each satisfied via its own arbitration
+  branch — so either side can always invoke arbitration on their own
+  funds, unilaterally, and neither side's pick can dominate the
+  outcome alone, since a genuine settlement needs both appointed
+  arbiters to actually agree.
+  - **Not the same thing as the rejected pre-designated mediator**,
+    despite also being chosen "upfront": the earlier rejection was
+    specifically about *one shared judge*, unilaterally imposed by
+    whichever party existed first. This is each side independently
+    appointing their *own* representative over their *own* funds only
+    — structurally more like each side hiring their own lawyer than
+    one side picking a shared arbitrator for both.
+  - **Genuinely still open, not resolved here**: what happens when the
+    two independently-appointed arbiters *disagree*. A third
+    tie-breaking signer, or each side appointing a small panel instead
+    of one key, are both plausible — deliberately not decided now
+    rather than guessed; this is exactly the kind of fund-handling
+    detail this action's own mainnet gate exists to catch before it
+    matters.
+  - **This tier still improves on a naive shared-multisig-from-day-one
+    approach**: each side's arbitration branch only activates on
+    *their own* output, so a bug in one side's script can't misdirect
+    the other side's funds — the blast radius of a mistake stays
+    contained to whichever side's own arbiter-branch code is wrong.
+
+  **Operational consequence shared by both tiers**: `window_days`
+  (A005's own per-bond field) must be set comfortably longer than the
+  realistic real-world time needed to actually resolve a dispute
+  through whichever tier's process applies — a deployment/product
+  guidance note, not a new claim_value field.
 - **Testnet-only until a real security review happens.** Given the
   fund-loss stakes, this action's own Tasks list below treats "get it
   reviewed before it ever touches mainnet sats" as a hard gate, not a
@@ -139,11 +169,11 @@ not reimplement).
 
 ## Tasks
 
-### Pre-escalation output (single-party self-custody)
+### Shared: pre-escalation output (both tiers, single-party self-custody)
 - [ ] Construct a plain CSV-timelocked single-sig output script:
       owner spends alone after `window_days` — used identically for
       both a bond (attester as owner) and a challenge stake
-      (challenger as owner), per the Decision above
+      (challenger as owner)
 - [ ] Generate a funding address/descriptor for a new bond or
       challenge stake, to populate `EscrowRef` (BIP380 descriptor, per
       Decisions)
@@ -151,46 +181,56 @@ not reimplement).
       claimed `amount_sats` (watching for confirmation, not just an
       unconfirmed mempool entry)
 
-### Escalation (joint custody, only once a panel is confirmed)
-- [ ] Given a `ConfirmedPanel` result, cooperatively construct (via
-      PSBT) a new n-of-m output naming the confirmed panel, spending
-      both the bond's and the stake's pre-escalation outputs into it —
-      requires both attester's and challenger's signatures, since
-      each is spending their *own* pre-escalation output
-- [ ] Detect non-escalation: a challenge exists, the panel is
-      confirmed, but no escalation transaction has been broadcast
-      within a reasonable margin of `window_days` — surfaced as data
-      for a verifier's own reputational judgment (per the Decision's
-      residual-risk handling), not enforced in-code
+### Small-bond tier: cooperative escalation, mutual settlement first
+- [ ] On challenge, cooperatively construct (via PSBT) a joint output
+      with two paths: 2-of-2 mutual settlement (any split, no panel
+      needed), and a fallback spendable once `ConfirmedPanel` confirms
+      a single mutually-agreed arbiter
+- [ ] Detect non-escalation: a challenge exists but no escalation
+      transaction has been broadcast within a reasonable margin of
+      `window_days` — surfaced as data for a verifier's own
+      reputational judgment, not enforced in-code
+- [ ] Settlement: 2-of-2 mutual-settlement spend (either side proposes
+      a split, the other co-signs); arbiter-decided spend once
+      `Resolve` reports a decision from the single confirmed arbiter
 
-### Settlement (from the escalated joint-custody output only)
-- [ ] Given `dispute.IsSelfReleased` = true (never escalated), the
-      pre-escalation single-sig spend is just an ordinary timelocked
-      self-spend — no new code beyond the pre-escalation output itself
-- [ ] Given `dispute.Resolve` = decided, construct and (on
-      regtest/testnet) broadcast the verdict-settlement spend from the
-      escalated joint-custody output, paying the `Resolve`-determined
-      winner, signed by the panel's own confirmed majority
+### Larger-bond tier: independent upfront arbiter commitments
+- [ ] Extend the bond/stake output scripts for this tier with a second
+      spending path: `owner's own chosen arbiter key + a counterpart
+      signer` — committed at funding time, independently by each side
+- [ ] Construct the joint settlement transaction spending both outputs
+      together, each via its own arbitration branch, once both
+      appointed arbiters agree on a split
+- [ ] Resolve the open tie-breaking question (third signer vs. small
+      per-side panels) **before** writing the disagreement-handling
+      code — not guessed at implementation time
+
+### Settlement (shared)
+- [ ] Given `dispute.IsSelfReleased` = true (never escalated, either
+      tier), the pre-escalation single-sig spend is an ordinary
+      timelocked self-spend — no new code beyond the shared
+      pre-escalation output itself
 
 ### Tests
 - [ ] Pre-escalation output: owner-alone spend succeeds only after
       `window_days`, fails before it — unit tests against `btcd`'s
       regtest/simnet tooling (no real funds)
-- [ ] Escalation: cooperative n-of-m construction succeeds only with
-      both original owners' signatures; a non-cooperating party blocks
-      it (confirms the residual risk is real and structural, not just
-      theoretical)
+- [ ] Small-bond tier: 2-of-2 mutual settlement succeeds with both
+      signatures at any time; single-arbiter fallback succeeds only
+      once `ConfirmedPanel`/`Resolve` actually agree; a non-cooperating
+      party blocks escalation entirely (confirms the residual risk is
+      real and structural, not just theoretical)
+- [ ] Larger-bond tier: each side's arbitration branch spends only
+      with that side's own appointed arbiter's signature; a joint
+      settlement requires both; a lone appointed arbiter cannot move
+      the *other* side's output
 - [ ] Funding-verification tests against a regtest node: unfunded,
       underfunded, and correctly-funded cases
-- [ ] Settlement tests: self-release spend succeeds only after the
-      window when never escalated; verdict spend succeeds only with a
-      genuinely decided `Resolve` result and the confirmed panel's
-      actual majority signatures, from the escalated output only
 
 ### Before mainnet
-- [ ] Independent security review of both the pre-escalation and
-      escalated scripts (not self-certified) — hard gate, not a Task
-      to check off solo
+- [ ] Independent security review of every script variant across both
+      tiers (not self-certified) — hard gate, not a Task to check off
+      solo
 
 ## Log
 
@@ -233,3 +273,27 @@ than realistic panel-confirmation-plus-escalation time, or the
 requirement becomes impractical rather than just inconvenient. Tasks
 rewritten to reflect the two-stage (pre-escalation self-custody,
 then escalated joint-custody) structure this decision implies.
+
+2026-09-29 — Refined into a two-tier structure, matching D001's own
+small/larger-bond distinction rather than one mechanism for both.
+Small bonds: kept the cooperative-escalation model above, but added a
+2-of-2 mutual-settlement path as the *first* resort within the
+escalated output, available before any arbiter is even involved — most
+disputes between two people with real money at stake resolve by direct
+agreement once forced to the table, and D001 itself treats a single
+mutually-agreed arbiter as sufficient for this tier, so third-party
+adjudication should be the fallback, not the default. Larger bonds:
+the cooperative model isn't actually sufficient here, since whoever
+expects to lose an arbitration can just refuse to cooperate with any
+escalation step, defeating a "requirement." Resolved by having each
+side independently pre-commit their *own* arbiter key into their
+*own* output at funding time (attester when bonding, challenger when
+challenging) — this gives either side a real unilateral right to
+invoke arbitration on their own funds, without depending on the other
+side's cooperation, while still not reintroducing the rejected
+single-shared-judge pattern (each side only controls their own
+arbitration branch; a real settlement needs both appointed arbiters to
+agree). Left one thing genuinely open rather than guessed: what
+happens when the two independently-appointed arbiters disagree — a
+tie-breaking mechanism deferred to its own decision before that code
+gets written. Tasks rewritten around both tiers.

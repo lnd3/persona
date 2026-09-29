@@ -543,3 +543,19 @@ timelock — is resolved reputationally, not cryptographically, the same
 honest move D001 already made for GDPR erasure. A006's Tasks rewritten
 around this two-stage (self-custody, then escalated joint-custody)
 structure; script construction can now actually start.
+
+2026-09-29 — Refined A006's escrow structure into two tiers, matching
+D001's own small/larger-bond distinction. Small bonds keep cooperative
+escalation but now settle via 2-of-2 mutual agreement first, arbiter
+fallback second — most disputes resolve by direct agreement, so
+third-party adjudication should be the exception, not the default path
+(D001 itself treats a single mutually-agreed arbiter as sufficient for
+this tier). Larger bonds needed a different answer: cooperative
+escalation alone can't support a genuinely *requirable* right to
+arbitration, since whoever expects to lose can just refuse to
+cooperate. Resolved by having each side independently pre-commit their
+own arbiter key into their own output at funding time — real
+unilateral leverage without reintroducing the earlier-rejected
+single-shared-judge pattern. Left the two-appointed-arbiters-disagree
+case as a genuinely open tie-breaking question, deliberately not
+guessed.

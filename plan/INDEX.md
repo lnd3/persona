@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-29 14:23:35 UTC*
+*Last updated: 2026-09-29 14:44:34 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -37,3 +37,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A001](actions/A001-core-identity-and-attestation-event-layer.md) | Core identity and attestation event layer | DONE | D001 | TBD |
 | [A002](actions/A002-relative-trust-computation.md) | Relative trust computation (web-of-trust weighting) | DONE | D001 | TBD |
 | [A003](actions/A003-recovery-guardian-attestation-and-sskr-key-splitting.md) | Recovery — guardian attestation and SSKR key splitting | PLANNING | D001 | TBD |
+| [A004](actions/A004-payment-integration-attestation-cost-gateway.md) | Payment integration — attestation-cost gateway (L402/Aperture) | PLANNING | D001 | TBD |

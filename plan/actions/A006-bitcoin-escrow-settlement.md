@@ -270,7 +270,8 @@ longer applies; that history is kept in the Log, not here.**
 ### Before mainnet
 - [ ] Independent security review of every script and the finalizer
       logic (not self-certified) — hard gate, not a Task to check off
-      solo; **not reached**
+      solo; now tracked as its own action, [[A007]], filed 2026-09-30
+      — this task is done once A007 records a pass
 
 ## Log
 
@@ -496,3 +497,10 @@ so it would have happily produced a witness real validation would
 reject at broadcast time). 22 new/changed tests, full repo clean (110
 tests total). Still not DONE: `ChainQuerier`'s real backend (still no
 regtest node reachable here) and the mainnet security-review gate.
+
+2026-09-30 — Filed [[A007]]: the mainnet security-review gate this
+action's own Tasks list has always carried, now tracked as its own
+action instead of an aspiration inside this one's task list. A007
+also owns the regtest/testnet exercise (funding, spending, confirming
+each branch for real) as its own prerequisite, ahead of the review
+itself.

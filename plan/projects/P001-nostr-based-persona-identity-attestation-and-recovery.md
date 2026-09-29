@@ -529,3 +529,17 @@ before any script-construction code — deliberately not resolved by
 guessing during filing. Also gated mainnet activation behind an
 explicit independent-security-review task, given the fund-loss stakes
 this action carries that nothing else in this project does.
+
+2026-09-29 — Resolved A006's open design question: voluntary
+escalation into joint custody, not a pre-designated mediator. The
+mediator alternative was rejected on principle (it would make the
+attester unilaterally pick their own judge), not just on
+inconvenience. Escalation also improves the action's own risk profile:
+pre-escalation, both a bond and a challenge stake are pure
+single-party self-custody, so the dangerous multisig code only gets
+built and exercised on actual disputes, not on every bond. Residual
+risk — an attester can refuse to escalate and wait out their own
+timelock — is resolved reputationally, not cryptographically, the same
+honest move D001 already made for GDPR erasure. A006's Tasks rewritten
+around this two-stage (self-custody, then escalated joint-custody)
+structure; script construction can now actually start.

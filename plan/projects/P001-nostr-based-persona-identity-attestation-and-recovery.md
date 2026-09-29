@@ -176,8 +176,13 @@ in [[D001]].
       NIP-01, so that filter moved client-side. All tests pass,
       including a live trust-edge publish/fetch round trip against
       `wss://nos.lol`.
-- [ ] File the remaining actions: recovery, payment integration, and
-      bonding/slashing all still remain unfiled
+- [x] File [[A003]]: recovery (guardian attestation + SSKR key
+      splitting) — done 2026-09-29, builds on A001, scoped to
+      split/combine, guardian designation, and recovery confirmation
+      primitives only (guardian-contact workflow and verifier-side
+      recovery policy explicitly deferred)
+- [ ] File the remaining actions: payment integration and
+      bonding/slashing still remain unfiled
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -344,3 +349,15 @@ filter client-side, after an unfiltered `Kind`+`Authors` relay query.
 Worth remembering for any future relay-side filtering on a
 `persona`-specific tag: single-letter tags only, everything else
 client-side.
+
+2026-09-29 — Filed [[A003]]: recovery, building on A001's attestation
+primitive per D001's "SSKR-based key splitting, authorized via
+delegation attestation" resolution. Made the choices D001 left open:
+plain Shamir (`hashicorp/vault/shamir`) over bech32-SSKR framing since
+shares here are transport-only, not human-transcribed; two new claim
+types (`recovery_guardian`, `recovery_confirm`) with a `group_id`/
+`recovery_nonce` scheme to disambiguate guardian sets and recovery
+attempts; NIP-44-encrypted DM events as the only channel shares travel
+over. Guardian-contact workflow and verifier-side recovery policy
+explicitly deferred, same posture as A002 took toward trust-weighting
+policy.

@@ -37,19 +37,49 @@ conflated:
 
 - **Stage 2 is a real, standalone infrastructure undertaking, not an
   extension of the Stage 1 template — checked concretely, not
-  assumed.** `lnd` and `aperture` both resolve as real Go modules
-  (`go list -m` confirms `v0.21.x`/`v0.5.0` respectively), so the
-  *shape* is feasible — but `lnd`'s own `go.mod` requires
-  **Go ≥1.25.13**, which would force a toolchain bump if imported
-  directly into persona's own module (the exact `hashicorp/vault/
-  shamir` lesson from [[A003]], recurring here for a genuinely-needed
-  dependency this time, not an avoidable one). The mitigation is the
-  same shape [[A006]]/[[A007]] already used for `btcd`: build `lnd`,
-  `lncli`, and `aperture` as **standalone external binaries** (`go
-  install` into an isolated `GOBIN`) and drive them over gRPC/HTTP/
-  shell from test code — never importing their Go packages into
-  persona's own `go.mod`, so persona's own toolchain requirement stays
-  untouched regardless of what `lnd` itself needs.
+  assumed.** `lnd` and `aperture` both resolve as real Go modules, so
+  the *shape* is feasible — but neither can be imported into persona's
+  own `go.mod` directly: both require a newer Go toolchain than
+  persona's own (checked again 2026-09-30, moved further since the
+  first check: `lnd@v0.21.3-beta` now requires **Go ≥1.25.13**,
+  `lnd@v0.21.4-beta.rc1` **Go ≥1.26.8**, `aperture@v0.5.0` **Go
+  ≥1.26.0** — these version-to-toolchain mappings drift release to
+  release, so re-check at actual implementation time rather than
+  trusting this scoping pass's numbers). Same class of risk
+  `hashicorp/vault/shamir` taught in [[A003]], for a dependency that's
+  genuinely needed this time, not avoidable.
+- **Correction (2026-09-30, checked concretely by actually attempting
+  it, not assumed from the `btcd` precedent): neither binary can be
+  built with a plain `go install <module>@<version>` the way `btcd`
+  was.** Both `lnd`'s and `aperture`'s own `go.mod` files contain
+  `replace` directives (pinning their own forked/patched
+  dependencies) — Go's tooling refuses to honor `replace` directives
+  for a module installed by version reference (confirmed for
+  `lnd@v0.21.3-beta`, `lnd@v0.21.4-beta.rc1`, and `aperture@v0.5.0`;
+  the exact error: `"The go.mod file for the module providing named
+  packages contains one or more replace directives. It must not
+  contain directives that would cause it to be interpreted
+  differently than if it were the main module."`). This is structural
+  to both projects, not a version-specific bug, and matches each
+  project's own documented install method (a `git clone` + build from
+  within the cloned tree, not `go install` of a remote module — `lnd`'s
+  own README uses this shape). **Corrected mitigation**: `git clone`
+  each repo (small footprint — confirmed ~7MB `lnd`, ~1MB `aperture`
+  as shallow clones) into a scratch directory, then `go build
+  ./cmd/lnd` / `go build ./cmd/aperture` from *within* that cloned
+  tree (where the module's own `replace` directives resolve correctly,
+  since it's then the main module) — output binaries land in an
+  isolated location, never imported into persona's own `go.mod`,
+  preserving the original intent (persona's own toolchain requirement
+  stays untouched) even though the exact build mechanism differs from
+  `btcd`'s.
+- **Environment-specific operational note, found while scoping**: this
+  session's own sandbox blocks building freshly-cloned external-repo
+  code without explicit approval (a safety-classifier denial hit while
+  testing the `git clone` + `go build` approach above) — worth knowing
+  going in, not a code-level blocker. Whoever picks up Stage 2's actual
+  implementation should expect to either get that approval explicitly
+  or do the build step in a less restricted environment/worktree.
 - **What Stage 2 actually requires, named concretely rather than left
   vague**: two `lnd` regtest nodes (pointed at the same btcd regtest
   backend [[A006]]/[[A007]] already stood up), an on-chain channel
@@ -92,9 +122,15 @@ conflated:
       claim hash (not reusing the original `pending`/`hash` values)
 
 ### Stage 2: real Aperture + Lightning regtest (deferred, not started)
-- [ ] Build `lnd`, `lncli`, and `aperture` as standalone external
-      binaries (isolated `GOBIN`, never imported into persona's own
-      `go.mod`)
+- [ ] `git clone` `lnd` (`cmd/lnd`, `cmd/lncli`) and `aperture`
+      (`cmd/aperture`) into a scratch directory each; `go build` from
+      within each cloned tree (not `go install <module>@version` — see
+      Decisions above for why that doesn't work for either). Re-check
+      the real Go-toolchain requirement at that time, not from this
+      scoping pass's numbers (both move release to release). Requires
+      either explicit approval for building freshly-cloned external
+      code in a sandboxed session, or doing this step in a less
+      restricted environment.
 - [ ] Stand up two `lnd` regtest nodes against the existing `btcd`
       regtest backend; open and fund a channel between them
 - [ ] Configure `aperture` against one node's macaroon/TLS, registered
@@ -103,7 +139,8 @@ conflated:
 - [ ] Drive the full flow for real end to end; confirm Aperture's real
       gating, not a simulation, actually protects the gateway
 - [ ] Not started — explicitly deferred given the real setup cost
-      (two funded nodes, a real channel, real Aperture config); same
+      (two funded nodes, a real channel, real Aperture config, a build
+      step with its own environment-specific approval hurdle); same
       "defer the harder cross-domain slice" discipline [[A006]] applied
       to its own escrow-settlement follow-up
 
@@ -123,3 +160,25 @@ Stage 1's simulated template proves persona's own code is correct at
 effectively no infrastructure cost, which is the actual prerequisite
 before spending the much larger effort Stage 2 would need. Stage 1's
 own test passed on the first run; full repo build/vet/test clean.
+
+2026-09-30 — **Re-scoped Stage 2 with real, hands-on checks** (asked to
+start scoping this while A007 waits on a reviewer). Corrected a real
+mistake in the original scoping: `go install <module>@version` — the
+approach that worked cleanly for `btcd` — does **not** work for `lnd`
+or `aperture`. Actually attempted it (not just `go list -m`) and hit
+Go's own refusal to honor `replace` directives in a remotely-installed
+module's `go.mod`, for every `lnd`/`aperture` version tried. Confirmed
+by cloning `lnd`'s real source (small: ~7MB shallow) that the
+project's own intended build path is `git clone` + build-from-within,
+not `go install` — the actual `go build` step itself was then blocked
+by this session's own sandbox (external-code-execution guard), so the
+full build wasn't completed in this pass, but the install-method
+correction itself is confirmed. Also re-checked toolchain requirements
+directly: they've moved since the first scoping pass (`lnd` now needs
+Go ≥1.25.13-1.26.8 depending on exact version, `aperture` ≥1.26.0) —
+recorded as drifting, re-check-at-implementation-time numbers, not
+fixed facts. Task list updated to reflect the corrected build approach
+and the environment-specific approval hurdle. Still deliberately not
+started beyond this scoping — the real infrastructure cost (two funded
+nodes, a channel, real Aperture config) is unchanged and still the
+reason to defer.

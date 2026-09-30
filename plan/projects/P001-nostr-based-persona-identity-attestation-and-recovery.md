@@ -124,6 +124,30 @@ in [[D001]].
   Deliberately left as a pointer here, not started in `EphemNet`'s
   plan — that's real design work belonging in that repo's own
   project/design structure, not a drive-by from this repo's context.
+- **Cross-repo watch item (noted 2026-09-30, not this repo's own
+  work)**: `cinder`'s new `P017`/`D012` — a payment middle layer
+  (opaque `PurchaseToken{token, expires_at}` contract, pluggable mock/
+  real backends) intended to eventually become persona's own
+  attestation-cost gateway's real backend. Cites persona's `A004`/
+  `A008` (`internal/payment/l402.go`'s wire format, and the Stage 1
+  simulated / Stage 2 deferred-real-regtest staging discipline) as
+  prior art — correctly as *citation, not a dependency*: Go's own
+  `internal/` package visibility means `cinder`/`EphemNet` couldn't
+  import `persona/internal/payment` even if the design wanted them to.
+  Asked directly whether this belongs in persona long-term: no — it
+  has zero identity content, and folding it into persona would invert
+  this repo's own stated "no runtime dependency on sibling repos"
+  pattern (`README.md`), the same call this design's own history
+  already reached once (caught mid-write in persona's plan, moved to
+  `cinder` for having no persona-identity coupling). Staying a
+  cross-repo pointer, not persona's own work, unless persona is
+  explicitly asked to build against it later once it's real.
+  Also confirmed (2026-09-30): D012 already names multi-backend support
+  (a card processor alongside Lightning, say) as an open question,
+  deliberately deferred until a second real backend is actually needed —
+  the opaque contract is already shaped so a future backend swap is a
+  new implementation, not a redesign. No action needed here; noted as
+  confirmation the design already accommodates it.
 - **Origin**: this repo's design was previously tracked only in
   `superplan` (theses T010/T011, project P008, design D003) — see that
   repo for the earlier design-formation history; this repo's own plan
@@ -709,3 +733,29 @@ into persona's own module). Named Stage 2's real requirements
 concretely (two funded Lightning nodes, a real channel, real Aperture
 config, orchestration code) rather than leaving them vague, and
 deferred it deliberately as a separate, much larger undertaking.
+
+2026-09-30 — Asked to watch `cinder`'s new payment-middle-layer work
+(`P017`/`D012`) and flag anything worth steering. Read both files:
+well-designed, self-correcting (already caught and fixed its own early
+mistake of putting L402/Aperture vocabulary in the contract, and of
+briefly landing in persona's own plan where it didn't belong), and
+accurately cites persona's actual `A004`/`A008` code. Asked directly
+whether the eventual extraction target should be a standalone repo or
+persona itself: recommended standalone, for a concrete reason beyond
+"feels out of scope" — Go's own `internal/` visibility means
+`cinder`/`EphemNet` can't import `persona/internal/payment` regardless,
+so there's no real code-reuse case for co-locating it in persona, and
+doing so would invert persona's own stated no-runtime-dependency-on-
+siblings pattern. Recorded as a cross-repo pointer in `Linked` above,
+not persona's own work — no plan/code changes made in `cinder` itself,
+since another session is actively building there.
+
+2026-09-30 — Follow-up: asked whether the payment layer should
+optimally also interface toward other payment systems if requested.
+Checked D012 directly rather than assuming: already listed under its
+own Open Questions ("Multiple real backends... probably premature
+until a second real backend is actually needed") — the opaque
+`PurchaseToken` contract is already shaped so a future second backend
+is a new implementation satisfying the same contract, not a redesign.
+Confirmed as already-accommodated design, not a gap; no action taken,
+here or in `cinder`.

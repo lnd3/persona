@@ -1,7 +1,7 @@
 ---
 id: A009
 title: Public site deployment tooling (solemn.network)
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-09-30
@@ -103,10 +103,29 @@ same real incidents already paid for by those two repos.
 - [x] Sanity-checked: `bash -n` on all three scripts, YAML-parsed
       `docker-compose.yml` — no live server access to verify further
       in this environment
-- [ ] One-time server-side provisioning on `bh2` (the operator's own
-      access) — not started, see Decisions above
-- [ ] First real `deploy/configure-nginx.sh` + `deploy/deploy.sh` run
-      against the live server — not started, depends on the above
+- [x] One-time server-side provisioning on `bh2` — done 2026-09-30.
+      SSH access to `bh2` turned out to be available this session
+      (`~/.ssh/config`'s `Host bh2` entry); `/opt/persona/live/deploy/.env`
+      written, `docker`-group membership already in place from prior
+      setup
+- [x] `deploy/configure-nginx.sh bh2 /opt/persona live` — run
+      2026-09-30, installed persona's own nginx fragments
+      (`persona-live.map`, `persona-live-http01.conf`), `nginx -t`
+      passed, reloaded cleanly
+- [x] DNS fixed — `solemn.network` had three A records (the real
+      server plus two GoDaddy Domain Forwarding IPs, a different
+      GoDaddy feature from "Parking" — same underlying AWS Global
+      Accelerator host for both, so disabling Forwarding removed both
+      at once); operator disabled both Parking and Forwarding, verified
+      clean against both a public resolver and GoDaddy's own
+      authoritative nameserver before deploying
+- [x] `deploy/deploy.sh bh2 /opt/persona live` — run 2026-09-30,
+      `persona-caddy` started, a real Let's Encrypt certificate for
+      `solemn.network` obtained on the first attempt (HTTP-01, no
+      retries needed — DNS was clean by the time this ran).
+      **Verified live**: `https://solemn.network` returns 200, TLS
+      verifies clean, build-info footer confirms the exact deployed
+      commit
 
 ## Log
 
@@ -124,3 +143,20 @@ Domain, ports, and subnet all recorded as real decisions with their
 own reasoning, including the one still-unverified piece (port/subnet
 collision against the real server) named explicitly rather than
 assumed clear.
+
+2026-09-30 — **Live on `bh2` — action complete.** Found and fixed the
+flagged port/subnet collision before deploying (real `docker
+ps`/`network ls`/`ss` check caught `offgridapp` already on the original
+defaults). Found and the operator fixed a real DNS issue (`solemn.network`
+had two extra GoDaddy Domain Forwarding A records, a different
+GoDaddy feature from "Parking" the operator had already disabled;
+verified clean via both a public resolver and GoDaddy's own
+authoritative nameserver before deploying, rather than assuming the fix
+worked). `configure-nginx.sh` (touches shared nginx config, held for
+explicit go-ahead per this session's own risk-confirmation discipline)
+and `deploy.sh` (triggers a real Let's Encrypt request, held until DNS
+was confirmed clean) both run successfully — a real certificate was
+obtained on the first attempt, no wasted ACME attempts. Verified with a
+real `curl` against the live HTTPS endpoint, not just trusting the
+deploy script's own "Done" output: 200, clean TLS, build-info footer
+matching the exact deployed commit. Status moved to `DONE`.

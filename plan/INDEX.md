@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-30 13:02:26 UTC*
+*Last updated: 2026-09-30 13:03:42 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -42,4 +42,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A006](actions/A006-bitcoin-escrow-settlement.md) | Bitcoin escrow settlement (script construction, funding, on-chain verification) | PLANNING | D001 | TBD |
 | [A007](actions/A007-bitcoin-escrow-security-review.md) | Independent security review of the Bitcoin escrow scripts | PLANNING | D001 | TBD |
 | [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration | PLANNING | D001 | TBD |
-| [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | PLANNING | D001 | TBD |
+| [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |

@@ -95,15 +95,30 @@ the fix, it doesn't own the redesign.
 ## Tasks
 
 ### Prerequisite: regtest/testnet exercise
-- [ ] Stand up or gain access to a regtest node (bitcoind/btcd) — not
-      available in this environment as of A006's own implementation
-      pass; blocks everything below until resolved
-- [ ] Build the real `ChainQuerier` backend A006 left as an interface,
-      against that node
-- [ ] Actually fund, spend, and confirm each of `UniversalScript`'s
-      four branches and `ReinforcedScript`'s five on regtest —
-      real broadcast and confirmation, not just in-process engine
-      validation
+- [x] Stand up or gain access to a regtest node (bitcoind/btcd) — done
+      2026-09-30: `btcd`'s full source (including the daemon's own
+      `main` package) was already present in this project's Go module
+      cache as a transitive dependency of `txscript`/`psbt`, so `go
+      install github.com/btcsuite/btcd@v0.24.2` builds a real, working
+      node directly, no new binary dependency. **Not a standing
+      environment fixture** — stood up for this session's exercise,
+      not guaranteed reachable in any future session; `regtest_test.go`
+      documents exactly how to reproduce it
+- [x] Build the real `ChainQuerier` backend A006 left as an interface,
+      against that node — done 2026-09-30, `internal/escrow/
+      rpcquerier.go` `RPCQuerier`, backed by `btcd`'s own `rpcclient`
+      (same module, no new dependency)
+- [x] Actually fund, spend, and confirm `UniversalScript`'s mutual-
+      settlement and both arbiter-assisted branches (2 and 3) on a
+      real regtest node — done 2026-09-30, `regtest_test.go`, genuine
+      broadcast + real mempool acceptance + confirmation, not just
+      in-process engine validation. **Branch 4 (the CSV fallback) and
+      all of `ReinforcedScript`'s branches remain untested live** —
+      branch 4's live timing is a deliberate, stated scope boundary
+      (see A006's own Log: no `setmocktime` in `btcd`, and the
+      underlying sequence-comparison mechanism is already proven at
+      the consensus-engine level); `ReinforcedScript`'s branches
+      simply weren't gotten to this pass and are still open
 
 ### Arranging the review
 - [ ] Identify a reviewer meeting the "independent" bar above
@@ -133,3 +148,17 @@ cheaply. Stated concrete pass criteria (no valid spend without a real
 matching signature, no branch satisfiable with fewer signatures than
 designed, no fallback spend before its CSV window has genuinely
 elapsed) rather than leaving "looks safe" as the bar.
+
+2026-09-30 — Made real progress on this action's own prerequisite,
+found opportunistically while working on A006: `btcd`'s full daemon
+source was already present in this project's Go module cache (a
+transitive dependency of `txscript`/`psbt`), so a real regtest node
+could be built and run directly, no new binary dependency. Built the
+real `ChainQuerier` backend (`RPCQuerier`) and genuinely funded,
+broadcast, and confirmed three of `UniversalScript`'s four branches
+against it. **Not fully done**: this node isn't a standing fixture —
+it was stood up for this session and isn't guaranteed reachable in a
+future one (though `regtest_test.go` documents exactly how to
+reproduce it); branch 4's live timing and all of `ReinforcedScript`'s
+branches remain untested live. The review itself (identifying a
+reviewer, assembling the package, acting on findings) hasn't started.

@@ -219,10 +219,12 @@ longer applies; that history is kept in the Log, not here.**
       the genuinely custom multi-branch scripts) — `descriptor.go`
 - [x] Verify a referenced escrow is actually funded on-chain —
       `verify.go` `VerifyFunded`, against a `ChainQuerier` interface.
-      **Only the logic is done, not a real backend**: no regtest/
-      bitcoind node is reachable in this environment to build and test
-      a concrete RPC-backed implementation against, so `ChainQuerier`
-      stays an interface (tested via a mock) until one is available
+      **Real backend now built**: `rpcquerier.go` `RPCQuerier`,
+      backed by `btcd`'s own `rpcclient` package (already vendored as
+      part of the same module — no new binary dependency), exercised
+      against a real regtest `btcd` node built directly from that
+      vendored source with `go install github.com/btcsuite/btcd@v0.24.2`
+      — see the live regtest tests below
 
 ### Settlement (PSBT)
 - [x] `NewSettlementPacket`/`SignSettlementInput` — build an unsigned
@@ -264,8 +266,24 @@ longer applies; that history is kept in the Log, not here.**
       arbiter-sides-with-subject, and fallback branches, plus
       `ReinforcedScript`'s both-arbiters-agree branch, plus a
       not-yet-finalizable case — `TestSettlement_*`
-- [ ] Funding-verification tests against a real regtest node —
-      **blocked**, no node reachable in this environment
+- [x] Live regtest tests against a real `btcd` node — `regtest_test.go`:
+      `UniversalScript`'s mutual-settlement and both arbiter-assisted
+      branches (2 and 3) genuinely funded, broadcast, accepted by a
+      real node's mempool, and confirmed — not just in-process engine
+      validation. Gated behind a reachability probe (skips gracefully
+      if no node is listening at `127.0.0.1:18443`, the same pattern
+      A001's live-relay test already established), so this doesn't run
+      in most environments — see the file's own doc comment for how to
+      stand up a matching node. **Branch 4 (the CSV fallback)'s
+      live-node timing is *not* covered here** — BIP68's time-based
+      lock needs real median-time-past to advance ~14 days, which
+      isn't practical to wait out in a test and `btcd` has no
+      `setmocktime` RPC; that specific mechanism (comparing the
+      script's required sequence against the input's actual sequence)
+      is already exercised identically at the consensus-engine level
+      in `TestPreEscalationScript_*`, which is the same code path a
+      real node uses internally — a deliberate, stated scope boundary,
+      not a silent gap
 
 ### Before mainnet
 - [ ] Independent security review of every script and the finalizer
@@ -504,3 +522,37 @@ action instead of an aspiration inside this one's task list. A007
 also owns the regtest/testnet exercise (funding, spending, confirming
 each branch for real) as its own prerequisite, ahead of the review
 itself.
+
+2026-09-30 — Found and used a real regtest node. `btcd`'s full source,
+including the daemon's own `main` package and `rpcclient`, was already
+present in this project's own Go module cache as a transitive
+dependency of `txscript`/`psbt` — `go install
+github.com/btcsuite/btcd@v0.24.2` built a real, working `btcd` binary
+directly from it, no new binary dependency, no download beyond what
+Go's own module system already needed. Started it in regtest mode
+(`--miningaddr` pointing at a locally-generated key), mined past
+segwit's real BIP9 activation threshold (regtest requires actually
+signaling it, same as any other network — not active from genesis),
+and built `rpcquerier.go`'s `RPCQuerier` (backed by `rpcclient`,
+implementing the `ChainQuerier` interface `verify.go` left abstract)
+plus `regtest_test.go`'s live tests. `UniversalScript`'s
+mutual-settlement and both arbiter-assisted branches were genuinely
+funded from a real matured coinbase, broadcast, accepted by the real
+node's mempool, and confirmed — not just validated in-process.
+Caught and fixed one real test bug along the way: regtest's coinbase
+subsidy actually halves every 150 blocks
+(`RegressionNetParams.SubsidyReductionInterval`), so reusing a
+stale captured coinbase value across a halving boundary produced an
+invalid signature amount; fixed by fetching each coinbase's actual
+value fresh rather than reusing one across separately-mined blocks.
+Branch 4 (the CSV fallback)'s live-node timing is explicitly not
+covered — `btcd` has no `setmocktime`, and waiting out a real 14-day
+BIP68 median-time-past lock isn't practical in a test; that specific
+mechanism is already exercised at the consensus-engine level (the
+same code path a real node uses) in the existing
+`TestPreEscalationScript_*` tests. `ChainQuerier` now has a real
+backend, not just a mock-tested interface. Tests remain gated behind
+a reachability probe (skip gracefully, same pattern as A001's live-relay
+test) since no node is reachable in most environments including this
+one by default — this was a deliberately stood-up exception for this
+session, not a standing environment change.

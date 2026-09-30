@@ -18,7 +18,7 @@ Internet ──▶ nginx (host, shared with cinder/EphemNet) ──────�
                 │                                                        │
                 ▼                                                        ▼
           persona-caddy                                            persona-caddy
-          127.0.0.1:9460                                           127.0.0.1:9200
+          127.0.0.1:9470                                           127.0.0.1:9210
                 │
                 ▼
           site/index.html (static, read-only mount)
@@ -52,10 +52,21 @@ model as cinder/EphemNet — see cinder's own `deploy/README.md` for why.
    part of what gets synced from the dev machine, and survives every
    future deploy untouched (see `deploy/deploy.sh`'s own
    `rsync --exclude`).
-4. Point `solemn.network` (the bare apex — see `deploy/.env.example`'s
-   own comment on why the apex, not a subdomain, for now) at this
-   server's IPv4 address (an A record — add AAAA too only if the
-   server has real IPv6 connectivity).
+4. Point `solemn.network`'s domain root (not a subdomain, for now — see
+   `deploy/.env.example`'s own comment; this is an ordinary,
+   traditionally-served GoDaddy domain, deliberately NOT an
+   EphemNet-delegated apex domain the way `mera.network` is — the two
+   are kept separate on EphemNet's own recommendation) at this server's
+   IPv4 address, `158.174.211.245`, with exactly **one** A record — add
+   AAAA too only if the server has real IPv6 connectivity.
+   **Checked live 2026-09-30: this domain currently has THREE A
+   records** — `158.174.211.245` (correct) plus two GoDaddy
+   parking/forwarding IPs (`3.33.130.190`, `15.197.148.33`) left over
+   from before this domain pointed anywhere real. Remove those two in
+   GoDaddy's DNS panel before step 8 — with three round-robin A
+   records, Let's Encrypt's own HTTP-01 validator has roughly a 2-in-3
+   chance of hitting GoDaddy's parking page instead of this server,
+   which will make certificate issuance flaky or fail outright.
 5. Confirm the host firewall already allows `443`/`80` (it should,
    from cinder's/EphemNet's own setup) — see cinder's own
    `deploy/README.md` "Firewall" section if not.
@@ -74,15 +85,14 @@ model as cinder/EphemNet — see cinder's own `deploy/README.md` for why.
    `deploy/deploy.sh <user>@<server> /opt/persona live` — first real
    sync and start.
 
-**Before the first real deploy**: verify `172.31.1.0/24` and
-ports `9460`/`9200` (this repo's own live defaults — see
-`deploy/docker-compose.yml`'s own comment for the reasoning) don't
-actually collide with anything currently running on the real server —
-picked to sit past cinder's and EphemNet's documented ranges, but not
-yet confirmed against `docker compose ps`/`ip a` on the real box the
-way those two repos' own defaults were. Adjust
-`PERSONA_CADDY_HTTPS_PORT`/`PERSONA_CADDY_HTTP_PORT`/`PERSONA_EDGE_SUBNET`
-in `deploy/.env` if they do.
+**Port/subnet collision already checked live (2026-09-30)**: this
+repo's live defaults are `172.32.1.0/24` and `9470`/`9210` — see
+`deploy/docker-compose.yml`'s own comment. An earlier draft of this
+tooling picked `172.31.1.0/24`/`9460`/`9200`, which turned out to
+already be in live use by a fourth product on this server,
+`offgridapp` (not previously known to this repo's own plan) — caught
+by actually running `docker ps`/`docker network ls`/`ss -tlnp` against
+`bh2` before deploying, not assumed clear from documentation alone.
 
 ## Redeploying (`deploy/deploy.sh`, run from the dev machine)
 

@@ -90,8 +90,8 @@ port_or_default() {
 	printf '%s' "${value:-$default}"
 }
 # Must match deploy/docker-compose.yml's own defaults exactly.
-PERSONA_CADDY_HTTPS_PORT="$(port_or_default PERSONA_CADDY_HTTPS_PORT 9460)"
-PERSONA_CADDY_HTTP_PORT="$(port_or_default PERSONA_CADDY_HTTP_PORT 9200)"
+PERSONA_CADDY_HTTPS_PORT="$(port_or_default PERSONA_CADDY_HTTPS_PORT 9470)"
+PERSONA_CADDY_HTTP_PORT="$(port_or_default PERSONA_CADDY_HTTP_PORT 9210)"
 
 # export, not just assign: envsubst below runs as a separate process.
 export PERSONA_DOMAIN PERSONA_CADDY_HTTPS_PORT PERSONA_CADDY_HTTP_PORT

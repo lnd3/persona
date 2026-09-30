@@ -32,34 +32,43 @@ same real incidents already paid for by those two repos.
   `persona-caddy` service (`image: caddy:2`, nothing to build) serving
   `site/index.html` as a static file tree, same shape EphemNet already
   used for its own two landing pages.
-- **Domain: `solemn.network` (the apex), at the operator's explicit
+- **Domain: `solemn.network`'s domain root, at the operator's explicit
   direction (2026-09-30)** — not `persona.solemn.network`, the
   subdomain P001's "Naming" section otherwise documents as the
-  longer-term home for persona's own page once solemn.network's apex
-  might host protocol-spec content directly. Recorded as a real
+  longer-term home for persona's own page. Correction made the same
+  day: this is an ordinary, traditionally-served GoDaddy domain,
+  deliberately NOT an EphemNet-delegated apex domain the way
+  `mera.network` is — the two are kept separate on EphemNet's own
+  recommendation, per direct user correction. Recorded as a real
   decision, not an oversight — `deploy/.env.example`'s own comment
   cross-references this.
-- **Ports/subnet reserved, not yet verified against the real server.**
-  `172.31.1.0/24` (live) / `172.31.2.0/24` (dev), ports `9460`/`9200`
-  (live) `9560`/`9300` (dev) — picked to sit past cinder's documented
-  ranges (`172.28.0.0/24`, `9180-9184`/`9443-9447` live;
-  `172.29.0.0/24`, `9280-9284`/`9543-9547` dev) and EphemNet's
-  (`172.30.1.0/24`/`172.30.2.0/24`, `9190`/`9450` live, `9290`/`9550`
-  dev), following the same "next free block" reasoning both of those
-  repos used — but **not yet confirmed against the real server's
-  actual running containers** (`docker compose ps`/`ip a` on `bh2`
-  itself), which is a one-time deploy-time check, not something static
-  analysis alone can guarantee. `deploy/README.md`'s own "Before the
-  first real deploy" section states this explicitly rather than
-  implying it's already verified.
-- **One-time server-side provisioning (creating `/opt/persona/live`,
-  writing the real `deploy/.env`, pointing DNS at the server, running
-  `configure-nginx.sh`, then `deploy.sh`) is NOT done by this action** —
-  it requires the operator's own access to `bh2` and to
-  `solemn.network`'s DNS, both outside what this session can do
-  directly. `deploy/README.md` documents the exact one-time steps; this
-  action's own scope is the tooling being correct and ready, not the
-  live server actually running it yet.
+- **Ports/subnet: checked live against `bh2` itself (2026-09-30), not
+  just inferred from other repos' docs.** SSH access to `bh2` turned
+  out to be available this session (`~/.ssh/config`'s `Host bh2`
+  entry) — used to actually run `docker ps`/`docker network ls`/
+  `ss -tlnp` before finalizing anything. This caught a real collision:
+  the original defaults (`172.31.1.0/24`, `9460`/`9200`) were already
+  in live use by a fourth product on this server, `offgridapp` (not
+  previously known to this repo's own plan). Corrected to the next
+  free block: `172.32.1.0/24` (live) / `172.32.2.0/24` (dev), ports
+  `9470`/`9210` (live) `9570`/`9310` (dev). Confirmed live ranges at
+  check time: cinder `172.28.0.0/24`/`172.29.0.0/24`,
+  `9180-9184`/`9443-9447` (live) `9280-9284`/`9543-9547` (dev);
+  EphemNet `172.30.1.0/24`, `9190`/`9450`; `offgridapp`
+  `172.31.1.0/24`, `9200`/`9460`.
+- **Real DNS issue found live (2026-09-30): `solemn.network` currently
+  resolves to three A records**, not one — `158.174.211.245` (`bh2`,
+  correct) plus two GoDaddy parking/forwarding IPs
+  (`3.33.130.190`, `15.197.148.33`) confirmed by direct `curl` to each
+  (both serve a generic 114-byte GoDaddy parking page). With three
+  round-robin A records, Let's Encrypt's own HTTP-01 validator has
+  roughly a 2-in-3 chance of hitting the wrong IP, making certificate
+  issuance flaky or fail outright — and risking a wasted attempt
+  against Let's Encrypt's own rate limits. This is the operator's own
+  registrar panel to fix (removing the two non-`bh2` A records), not
+  something fixable from this session — `deploy/deploy.sh` (the step
+  that triggers a real ACME request) is deliberately held pending that
+  fix, even though everything else server-side is otherwise ready.
 
 ## Tasks
 

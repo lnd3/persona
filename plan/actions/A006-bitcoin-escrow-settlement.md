@@ -395,18 +395,55 @@ longer applies; that history is kept in the Log, not here.**
         already do — but not decided, since it changes this action's
         own scope boundary and deserves a real decision, not an
         implied one.
-- [ ] **`RPCConfig`'s own doc comment already self-flags this, worth
-      surfacing as a real task rather than leaving as a comment**:
-      "this type makes no attempt to be safe for a mainnet node's
-      credentials" — plaintext `User`/`Pass` fields, an explicit
-      `DisableTLS` option. Fine for a local regtest node; a production
-      RPC connection needs real credential handling (secrets not in
-      plain Go struct fields passed around/logged carelessly) and TLS
-      by default. Adjacent to, not clearly inside, this action's own
-      "no wallet/key-management infrastructure" exclusion (this is
-      about the *chain-query* connection, not fund custody) — worth an
-      explicit decision on which action owns hardening it, rather than
-      falling through the gap between the two.
+- [ ] **`RPCConfig`/TLS gap, re-scoped with a real finding (2026-09-30):
+      this is stronger than a hardening nicety — as shaped today, TLS
+      effectively cannot be used at all against a typical self-hosted
+      node.** Read `rpcclient`'s own dial code
+      (`infrastructure.go`), not just the doc comment, to check this
+      rather than assume: when `DisableTLS` is false, the client builds
+      a `tls.Config` whose `RootCAs` pool comes *only* from
+      `ConnConfig.Certificates` (a PEM cert chain) — if that's empty
+      (as it always is today, since `RPCConfig` doesn't expose it at
+      all), Go falls back to the system's public CA trust store. A
+      self-hosted `btcd`/`bitcoind` node's default RPC cert is
+      self-signed, not CA-issued — so a real connection attempt with
+      `DisableTLS: false` against any node using default settings would
+      fail TLS verification outright. In effect, today's `RPCConfig`
+      only works at all with `DisableTLS: true`, regardless of intent —
+      not just "credentials happen to be plaintext," the *connection
+      itself* can't use TLS against a normal node without this fix.
+      - **Fix, concretely scoped**: add `Certificates []byte` to
+        `RPCConfig`, passed straight through to `ConnConfig.Certificates`
+        — lets a caller supply their node's actual self-signed cert (or
+        a real CA-issued one) and get real TLS verification instead of
+        either failing outright or disabling TLS to work around it.
+      - **Also concretely available, same `ConnConfig` already used**:
+        `CookiePath` — bitcoind's/btcd's own standard production auth
+        mechanism (a dynamically-generated, node-managed credential
+        file, rotated on restart), used instead of `User`/`Pass` when
+        set. Adding this as an alternative to plaintext `User`/`Pass`
+        removes the need to embed real credentials in application
+        config at all for a real deployment — the standard pattern, not
+        an invented one.
+      - **Lower-priority, noted but not scoped in depth**: `Proxy`/
+        `ProxyUser`/`ProxyPass` (SOCKS5) already exist on `ConnConfig`
+        too — relevant for reaching a remote or Tor-hidden node without
+        exposing RPC on the open network directly, real but not as
+        immediately blocking as the TLS gap above.
+      - **Confirmed NOT an additional gap, checked rather than
+        assumed**: no code anywhere in this package logs or prints
+        `RPCConfig`/`ConnConfig` (`grep` for `%+v`/logging calls in
+        `rpcquerier.go` found nothing) — the plaintext-`User`/`Pass`-
+        as-Go-strings limitation (can't be securely zeroed after use,
+        unlike `[]byte`) is real but minor and not fixable without a
+        bigger API change; noted as an accepted residual rather than a
+        task, the same "state the honest limit rather than invent
+        complexity to fully solve it" move this design makes elsewhere.
+      - Still adjacent to, not clearly inside, this action's own "no
+        wallet/key-management infrastructure" exclusion (this is the
+        *chain-query* connection, not fund custody) — worth an explicit
+        decision on which action owns implementing it, same as the
+        fee/dust-limit item above.
 - [ ] **Confirmed NOT a gap, checked rather than assumed**: chain
       selection (mainnet vs. testnet vs. regtest) is already properly
       parameterized — `FundingAddress` (`timelock.go`) takes
@@ -778,3 +815,24 @@ fee/dust helper belongs inside `internal/escrow` (leaning yes — this
 isn't a deployment/key-custody concern, it's the same kind of thing
 `WitnessScriptHash` already does) or stays the caller's job — a real
 decision to make before implementing, not decided here.
+
+2026-09-30 — **Scoped the RPCConfig/TLS gap, and it's a stronger
+finding than expected.** Read `rpcclient`'s own dial code
+(`infrastructure.go`) directly rather than trusting the existing doc
+comment: `RPCConfig` as currently shaped can only actually connect
+with `DisableTLS: true` — enabling TLS with no `Certificates` supplied
+falls back to the system CA trust store, which a self-hosted node's
+default self-signed cert will never satisfy, so a real TLS connection
+attempt against a normal node would just fail. Not just "credentials
+are plaintext," the *connection itself* doesn't work as shaped.
+Scoped two concrete, already-available fixes on the same
+`rpcclient.ConnConfig` this code already wraps: `Certificates []byte`
+(lets a caller supply their node's real cert, fixing the TLS gap
+directly) and `CookiePath` (bitcoind's/btcd's own standard production
+auth mechanism, avoids embedding plaintext credentials in application
+config at all). Also checked and confirmed NOT an additional gap:
+nothing in this package logs or prints the config today. Noted
+SOCKS5 proxy support as available but lower-priority. Same open
+question as the fee/dust-limit item: whether this belongs inside
+`internal/escrow`'s own scope or is a separate deployment concern —
+not decided, scoping only.

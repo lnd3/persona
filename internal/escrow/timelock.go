@@ -1,19 +1,24 @@
 // Package escrow implements A006: the actual Bitcoin script
 // construction, funding, and settlement logic behind D001's
-// bonding/slashing mechanism, following the two-tier structure
-// decided in plan/actions/A006 — a small-bond tier (cooperative
-// escalation, mutual settlement first) and a larger-bond tier (each
-// side independently pre-commits their own arbiter's identity
-// upfront; escalation into joint arbiter custody still needs one
-// cooperative step, since a Bitcoin script's keys are fixed the
-// moment an output is created and can never reference a
-// counterparty's key that doesn't exist yet).
+// bonding/slashing mechanism. Per A006's corrected design (2026-09-30,
+// see plan/actions/A006's Log for the earlier escalation-based model
+// this superseded and why): UniversalScript and ReinforcedScript are
+// single, static scripts, fully configured at bond-creation time —
+// there is no escalation transaction, ever. The disputed attestation
+// already names its own subject_key (D001/A005 scope this mechanism
+// to disputes between two *identified* parties), so the "future"
+// counterparty was never actually unknown; only the arbiter is, and
+// that is solved via a standing arbiter_commitment claim rather than
+// a per-dispute selection.
 //
-// This package builds and validates scripts; it does not broadcast
-// transactions or talk to a live Bitcoin node — see verify.go's
-// ChainQuerier interface for where that plugs in, deliberately left
-// abstract since no regtest/bitcoind node is available to test
-// against directly in this environment (see plan/actions/A006's Log).
+// This package builds, signs, and validates scripts and settlement
+// transactions; ChainQuerier (verify.go) is the interface a caller
+// uses to check an escrow is actually funded on-chain — RPCQuerier
+// (rpcquerier.go) is a real implementation of it, backed by a btcd/
+// bitcoind JSON-RPC connection, exercised in this package's own live
+// regtest tests (regtest_test.go). See internal/escrow/SECURITY_REVIEW.md
+// for this package's own review package: scope, test coverage, and
+// known residuals, assembled for A007.
 package escrow
 
 import (
@@ -61,13 +66,16 @@ func SequenceForDays(windowDays int) (uint32, error) {
 	return csvTimeFlag | uint32(units), nil
 }
 
-// PreEscalationScript builds the shared pre-escalation witness script,
-// identical across both A006 tiers per the corrected larger-bond
-// design (see A006's Log): the owner alone can spend, and only after
-// `sequence` (from SequenceForDays) has elapsed relative to this
-// output's confirmation — no other path exists on this output. Used
-// for both a bond (attester as owner) and a challenge stake
-// (challenger as owner).
+// PreEscalationScript builds a standalone CSV-timelocked single-sig
+// witness script: the owner alone can spend, and only after `sequence`
+// (from SequenceForDays) has elapsed relative to this output's
+// confirmation. This exact fragment is reused as the final ("nobody
+// engaged at all") fallback branch inside both UniversalScript and
+// ReinforcedScript (upfront.go) — those are the scripts an actual bond
+// or challenge stake gets funded to; this function is not itself a
+// complete bond/stake output script on its own in the current design
+// (the name predates that design — see A006's Log for the superseded
+// model this was originally the *entire* output script for).
 //
 //	<sequence> OP_CHECKSEQUENCEVERIFY OP_DROP <ownerPubKey> OP_CHECKSIG
 func PreEscalationScript(ownerPubKey []byte, sequence uint32) ([]byte, error) {

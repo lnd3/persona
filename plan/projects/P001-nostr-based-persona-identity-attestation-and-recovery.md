@@ -677,3 +677,12 @@ same node. Fixed by funding a fraction of each coinbase's own value
 instead. Only the CSV fallback branch's live timing (a deliberate
 scope boundary, not an oversight) and the actual independent review
 itself remain.
+
+2026-09-30 — Started arranging A007's review: assembled the actual
+review package (`internal/escrow/SECURITY_REVIEW.md` — scope, design
+rationale, categorized test coverage, known residuals, pass criteria,
+reproduction commands). Found and fixed stale doc comments while
+doing so (the package's own top-level comment still described the
+superseded escalation design). Identifying and engaging an actual
+reviewer is explicitly not something to fabricate — surfaced back to
+the project's own operator as a real decision, not simulated.

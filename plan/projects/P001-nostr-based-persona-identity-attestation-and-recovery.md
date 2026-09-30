@@ -331,6 +331,14 @@ in [[D001]].
       this project wants to stand up its own reference gateway;
       otherwise no longer a hard blocker to this project's own design
       or implementation work
+- [x] File [[A009]]: public site deployment tooling — done 2026-09-30,
+      copied `cinder`'s/`EphemNet`'s own `deploy/` conventions directly
+      (same server, `bh2`), scoped to what persona actually has today
+      (one static page, no app binary). Tooling built and sanity-
+      checked; the live server's one-time provisioning and first real
+      deploy are explicitly not done yet — the operator's own access to
+      `bh2`/DNS is required for that, not something this session can do
+      directly
 
 ## Log
 

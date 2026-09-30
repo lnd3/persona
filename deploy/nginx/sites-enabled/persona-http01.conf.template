@@ -1,0 +1,31 @@
+# persona's own HTTP-01 vhost fragment — see cinder's own D007 for why
+# this exists at all: ACME uses HTTP-01, not TLS-ALPN-01 (a real,
+# extensively-diagnosed production failure with the latter there,
+# never root-caused — reused directly rather than rediscovering it).
+# Needs plain port 80 routed to persona-caddy's own internal port-80
+# listener (Caddy only ever answers ACME challenges there —
+# auto_https disable_redirects means it never redirects, so there's
+# nothing else on port 80 to worry about conflicting with).
+#
+# Installed at /etc/nginx/sites-enabled/persona-<environment>-http01.conf
+# — reusing Debian/Ubuntu's own pre-existing `sites-enabled` convention,
+# same as cinder's/EphemNet's own fragments. Safe for multiple repos the
+# same way stream-backends.d/ is: each repo drops its own
+# distinctly-named file into this directory, no shared file ever edited.
+#
+# .template, not .conf: deploy/configure-nginx.sh runs this through
+# `envsubst`, restricted to exactly the placeholders below (never
+# nginx's own `$host` etc.).
+
+server {
+	listen 80;
+	server_name ${PERSONA_DOMAIN};
+	location / {
+		# Without this, nginx's own default forwards the *upstream's*
+		# address as the Host header instead of the real one — Caddy
+		# then has no site block matching that Host at all. Found live
+		# on cinder's own deploy — see that repo's D007 Log.
+		proxy_set_header Host $host;
+		proxy_pass http://127.0.0.1:${PERSONA_CADDY_HTTP_PORT};
+	}
+}

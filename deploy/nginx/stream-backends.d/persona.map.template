@@ -1,0 +1,18 @@
+# persona's own nginx stream-backend entry — see cinder's own
+# deploy/README.md "MULTI-REPO OWNERSHIP" note. This repo owns and
+# ships exactly this file; it must never gain another repo's hostname
+# lines, and no other repo's fragment should ever gain this one.
+#
+# One hostname — the landing page — reverse-proxied by nginx's shared
+# stream{} passthrough straight through to persona-caddy, which
+# terminates TLS itself (see cinder's D007 for why nginx never
+# terminates TLS here).
+#
+# Port is a placeholder, not just the domain — must match
+# deploy/docker-compose.yml's own published persona-caddy HTTPS port
+# exactly.
+#
+# .template, not .map: deploy/configure-nginx.sh runs this through
+# `envsubst`, restricted to exactly the placeholders below.
+
+${PERSONA_DOMAIN}   127.0.0.1:${PERSONA_CADDY_HTTPS_PORT};  # persona-caddy (landing page)

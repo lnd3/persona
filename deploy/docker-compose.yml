@@ -1,0 +1,69 @@
+# Production compose stack for persona's own public landing page
+# (solemn.network) — copied and adapted directly from EphemNet's own
+# deploy/docker-compose.yml (same server, `bh2`, same convention —
+# itself copied from cinder's D007/P008), scoped down to what this
+# repo actually has today: one static-file page, no app binary of its
+# own yet (no `cmd/persona` daemon exists — internal/{identity,
+# attestation,trust,recovery,payment,dispute,escrow} are libraries with
+# their own tests, not a running service). Never invoked directly —
+# always via deploy/ops.sh or deploy/deploy.sh, which pass
+# `-p <environment>` (see deploy/environments.sh) so "live" and "dev"
+# never collide on container/volume/network names, and never collide
+# with cinder's or EphemNet's own stacks on the same host.
+#
+# Real, pinned subnet (not Compose's auto-assigned one), picked to sit
+# clearly past both existing stacks on `bh2`: cinder occupies
+# 172.28.0.0/24 (live, six /24s) and 172.29.0.0/24 (dev); EphemNet
+# occupies 172.30.1.0/24 (live) and 172.30.2.0/24 (dev). persona takes
+# the next block, 172.31.1.0/24 (live) / 172.31.2.0/24 (dev).
+#
+# Ports picked the same way: cinder's live stack occupies
+# 9180-9184/9443-9447, dev 9280-9284/9543-9547; EphemNet's live stack
+# occupies 9190/9450 (dev 9290/9550). persona takes 9200/9460 (live),
+# 9300/9560 (dev) — clearly outside every existing range, not verified
+# against the real server's actual running containers yet (that
+# verification is a one-time deploy-time step, not something this file
+# alone can confirm — see deploy/README.md).
+
+services:
+  # persona's own landing page (solemn.network) — a single static file
+  # tree, one Caddy instance, no app container needed (same shape as
+  # EphemNet's own ephemnet-caddy for its two landing pages, unlike
+  # cinder's own cinderapps, which needs a real Go binary for
+  # Host-based routing across several product pages — see cinder's
+  # D010). Add a second hostname/mount here the same way EphemNet did
+  # for its agent-download page, if/when persona.solemn.network needs
+  # its own distinct content instead of reusing this same page.
+  persona-caddy:
+    image: caddy:2
+    environment:
+      - PERSONA_DOMAIN=${PERSONA_DOMAIN:?set PERSONA_DOMAIN in deploy/.env}
+      - PERSONA_EDGE_SUBNET=${PERSONA_EDGE_SUBNET:-172.31.1.0/24}
+    volumes:
+      - ./persona-caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - ../site:/srv/site:ro
+      - persona-caddy-data:/data
+      - persona-caddy-config:/config
+    ports:
+      - "127.0.0.1:${PERSONA_CADDY_HTTPS_PORT:-9460}:443"
+      # HTTP-01 challenge port — see cinder's own D007 Log for why
+      # HTTP-01, not TLS-ALPN-01 (a real, extensively-diagnosed
+      # production failure with the latter, never root-caused).
+      - "127.0.0.1:${PERSONA_CADDY_HTTP_PORT:-9200}:80"
+    networks:
+      - persona-edge
+    restart: unless-stopped
+
+networks:
+  # Deliberately just {persona-caddy} — nothing else ever joins it, so
+  # nothing else can ever reach it except nginx's own published-port
+  # forwarding. Not marked `internal: true`: Caddy needs real outbound
+  # internet access for ACME (Let's Encrypt).
+  persona-edge:
+    ipam:
+      config:
+        - subnet: ${PERSONA_EDGE_SUBNET:-172.31.1.0/24}
+
+volumes:
+  persona-caddy-data:
+  persona-caddy-config:

@@ -1,0 +1,45 @@
+# persona's landing page's TLS-terminating sidecar — same shape as
+# cinder's own deploy/cinderapps/Caddyfile and EphemNet's own
+# deploy/ephemnet-caddy/Caddyfile (D007's pattern), reused directly
+# rather than reinvented: same global options (scoped listener wrapper
+# for PROXY protocol from nginx's stream{} passthrough), same
+# HTTP-01-not-TLS-ALPN-01 ACME shape after cinder's own real,
+# extensively-diagnosed production failure with TLS-ALPN-01 (see
+# cinder's D007 Log).
+#
+# One static-file hostname, one Caddy instance, no app container at
+# all — proportionate to one page, same reasoning EphemNet used for its
+# own two-page Caddyfile.
+#
+# {$PERSONA_DOMAIN} is Caddy's own native env-var substitution — set
+# via deploy/.env's PERSONA_DOMAIN (docker-compose.yml passes it
+# through as a container env var).
+{
+	auto_https disable_redirects
+
+	# Scoped to :443 only — an unscoped block would also wrap the
+	# auto-created :80 HTTP-01 listener in TLS, breaking it (same
+	# reasoning as cinder's/EphemNet's own Caddyfiles).
+	servers :443 {
+		listener_wrappers {
+			# `allow` must match persona-edge's own subnet in
+			# deploy/docker-compose.yml — the only network this
+			# container is on, so the only one nginx can reach it from.
+			proxy_protocol {
+				timeout 2s
+				allow {$PERSONA_EDGE_SUBNET}
+			}
+			tls
+		}
+	}
+}
+
+{$PERSONA_DOMAIN} {
+	tls {
+		issuer acme {
+			disable_tlsalpn_challenge
+		}
+	}
+	root * /srv/site
+	file_server
+}

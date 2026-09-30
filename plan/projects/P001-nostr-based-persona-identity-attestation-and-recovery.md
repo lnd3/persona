@@ -178,6 +178,17 @@ in [[D001]].
   the opaque contract is already shaped so a future backend swap is a
   new implementation, not a redesign. No action needed here; noted as
   confirmation the design already accommodates it.
+- **Cross-repo watch item (noted 2026-09-30, not this repo's own
+  work)**: `cinder`'s and `EphemNet`'s own `deploy/cinderapps/Caddyfile`
+  and `deploy/ephemnet-caddy/Caddyfile` both have the same real gap
+  [[A009]] found and fixed in persona's own copy — `auto_https
+  disable_redirects` with no explicit `http://` → `https://` redirect
+  block, meaning a real visitor hitting either domain's bare `http://`
+  gets a 502 from nginx instead of a redirect (see A009's own Log for
+  the fix and why it's safe alongside the ACME HTTP-01 responder).
+  Worth those repos' own attention since it affects real visitor
+  traffic, not just an edge case — not fixed here, since it's their own
+  files to edit, not a drive-by from this repo's context.
 - **Origin**: this repo's design was previously tracked only in
   `superplan` (theses T010/T011, project P008, design D003) — see that
   repo for the earlier design-formation history; this repo's own plan

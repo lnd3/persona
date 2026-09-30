@@ -789,3 +789,23 @@ until a second real backend is actually needed") — the opaque
 is a new implementation satisfying the same contract, not a redesign.
 Confirmed as already-accommodated design, not a gap; no action taken,
 here or in `cinder`.
+
+2026-09-30 — Built `site/index.html`, a comprehensive public landing
+page (identity/attestation, relative trust, economic sybil resistance,
+recovery with an honest key-loss-risk caveat, the Bitcoin bonding/
+slashing escrow design, L402 payment, and an explicit independent-
+review call-to-action for Bitcoin devs). Alongside it, resolved the
+`solemn.network` naming ambiguity flagged earlier: `solemn` becomes the
+home for the Nostr-based attestation *protocol* itself (the
+`kind:3300` event format, the open `claim_type` registry D001 already
+designed but never placed anywhere) — not a rename of persona.
+`persona` stays the product name, intended at `persona.solemn.network`.
+See "Naming" above for the full split and reasoning.
+
+2026-09-30 — Repo pushed to `github.com/lnd3/persona` and made public
+(the user's own action, confirmed reachable via the public GitHub API).
+MIT `LICENSE` was already in place from earlier this session. A006's
+Bitcoin escrow code is real, tested against a live regtest node, and
+now publicly visible — but still pending A007's independent review
+before being treated as mainnet-ready; the landing page states this
+status honestly rather than implying it's already cleared.

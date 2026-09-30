@@ -300,21 +300,38 @@ longer applies; that history is kept in the Log, not here.**
       logic (not self-certified) — hard gate, not a Task to check off
       solo; now tracked as its own action, [[A007]], filed 2026-09-30
       — this task is done once A007 records a pass
-- [ ] **Confirmation depth is a real, unresolved policy gap, found by
-      reading the actual code (2026-09-30), not just relying on the
-      task list above.** `RPCQuerier.TxOut` (`rpcquerier.go`) hardcodes
-      `result.Confirmations < 1` as its only threshold — one
-      confirmation is treated as fully funded, with no path to require
-      more. That's fine for regtest testing but not obviously safe for
-      real mainnet value: a 1-confirmation reorg could un-fund an
-      escrow a verifier already trusted as backing (e.g. to accept a
-      challenge or weight a bond). This is a **policy decision nobody
-      has actually made**, not a bug A007's code-correctness review
-      would catch — the code does exactly what it says, the question is
-      whether "exactly 1" is the right number for real money, possibly
-      scaled to bond size. Needs an explicit choice (a fixed N,
-      configurable per-caller, or scaled to `expectedAmountSats`) before
-      mainnet, not left at today's regtest-convenient default.
+- [x] **Confirmation depth — implemented 2026-09-30.** Was a real,
+      unresolved policy gap (`RPCQuerier.TxOut` hardcoded
+      `result.Confirmations < 1` as its only threshold, no path to
+      require more — not obviously safe for real mainnet value, since a
+      1-confirmation reorg could un-fund an escrow a verifier already
+      trusted). Fixed by moving the threshold from the querier to the
+      caller: `ChainQuerier.TxOut` now returns the real confirmation
+      count (`confirmations int64`) instead of collapsing "mempool
+      only" and "confirmed" into one boolean; `VerifyFunded` gained a
+      `minConfirmations int64` parameter, rejecting outright
+      (`minConfirmations <= 0` is an error, not silently treated as
+      "mempool is enough") rather than picking a number for every
+      caller. `RPCQuerier.TxOut` simplified to just report the node's
+      real `Confirmations` value, no threshold logic of its own left in
+      the querier. Verified two ways: `verify_test.go`'s mock-based
+      tests (insufficient-depth rejection, exact-boundary acceptance,
+      invalid-`minConfirmations` rejection) and a new
+      `TestRegtest_VerifyFundedEnforcesRealConfirmationDepth` — funds a
+      real output, confirms a 3-confirmation requirement is correctly
+      rejected at 1 real confirmation, accepted at exactly 1 when
+      required, then mines 2 more blocks and confirms the same
+      3-confirmation requirement now passes, against a real node's
+      actual confirmation count, not a mock. Full repo build/vet/test
+      clean; all 7 existing live-regtest branches re-verified against a
+      freshly wiped chain (the long-lived node from earlier in this
+      session had decayed into the documented subsidy-halving failure
+      mode, unrelated to this change — confirmed by isolating non-live
+      tests first, then re-running live tests against a fresh node).
+      Still an open choice for whoever deploys this for real: *what*
+      `minConfirmations` value to actually pass (fixed N vs. scaled to
+      bond size) — this action makes that choice possible and explicit,
+      it doesn't make it for every future caller.
 - [ ] **No fee estimation or dust-limit logic exists anywhere in
       `internal/escrow`, found the same way.** `NewSettlementPacket`
       (`settle.go`) takes a fully caller-supplied `payouts
@@ -665,3 +682,27 @@ in production code. All recorded as distinct Tasks above, not folded
 into A007's own review scope — A007 reviews script/finalizer
 *correctness*; these are separate policy decisions this action's own
 "Before mainnet" gate should also require an explicit answer to.
+
+2026-09-30 — **Implemented the confirmation-depth fix**, picked from
+the three scoped gaps as the most self-contained (no new external
+dependency, fully testable with the existing mock plus the real
+node). `ChainQuerier.TxOut` now returns a real `confirmations int64`
+instead of baking a threshold into the query; `VerifyFunded` gained a
+`minConfirmations` parameter and rejects `<= 0` outright rather than
+silently accepting mempool-only as funded. `RPCQuerier` simplified —
+no threshold logic left in the querier at all, just reports what the
+node says. No callers outside `internal/escrow` itself, so the
+interface change was safe to make directly (checked first via grep,
+not assumed). Verified against both the mock (5 tests, 3 new) and a
+real node (1 new live test funding a real output and checking
+rejection/acceptance at different real confirmation depths). Caught
+the long-lived regtest node from earlier in this session had decayed
+past the documented subsidy-halving threshold mid-verification —
+isolated by running non-live tests first (all passed), confirmed it
+was the known pre-existing issue rather than this change, then wiped
+the node's datadir and re-verified all 7 existing live branches plus
+the new test against a fresh chain. Full repo build/vet/test clean.
+Doesn't decide *what* `minConfirmations` value real callers should use
+(fixed vs. scaled to bond size) — that's still an open operational
+choice this change makes possible to express, not one it makes for
+every future caller.

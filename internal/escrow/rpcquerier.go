@@ -65,33 +65,32 @@ func NewRPCQuerier(cfg RPCConfig) (*RPCQuerier, error) {
 // Shutdown closes the underlying RPC connection.
 func (q *RPCQuerier) Shutdown() { q.client.Shutdown() }
 
-// TxOut implements ChainQuerier against the real node. It treats an
-// output with zero confirmations (still only in the mempool) the same
-// as "not found," per A005/A006's "watching for confirmation, not
-// just an unconfirmed mempool entry" requirement.
-func (q *RPCQuerier) TxOut(ctx context.Context, txid string, vout uint32) ([]byte, int64, bool, error) {
+// TxOut implements ChainQuerier against the real node. Reports the
+// real confirmation count rather than collapsing "mempool only" and
+// "confirmed" into one boolean — VerifyFunded's own minConfirmations
+// parameter is where the actual required-depth policy decision lives
+// (see that function's own doc comment for why 2026-09-30 moved it
+// there instead of hardcoding it here).
+func (q *RPCQuerier) TxOut(ctx context.Context, txid string, vout uint32) ([]byte, int64, int64, bool, error) {
 	hash, err := chainhash.NewHashFromStr(txid)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("escrow: invalid txid %q: %w", txid, err)
+		return nil, 0, 0, false, fmt.Errorf("escrow: invalid txid %q: %w", txid, err)
 	}
 
 	result, err := q.client.GetTxOut(hash, vout, false)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("escrow: gettxout %s:%d: %w", txid, vout, err)
+		return nil, 0, 0, false, fmt.Errorf("escrow: gettxout %s:%d: %w", txid, vout, err)
 	}
 	if result == nil {
-		return nil, 0, false, nil // spent or never existed
-	}
-	if result.Confirmations < 1 {
-		return nil, 0, false, nil // unconfirmed
+		return nil, 0, 0, false, nil // spent or never existed
 	}
 
 	scriptPubKey, err := hex.DecodeString(result.ScriptPubKey.Hex)
 	if err != nil {
-		return nil, 0, false, fmt.Errorf("escrow: decoding scriptPubKey hex: %w", err)
+		return nil, 0, 0, false, fmt.Errorf("escrow: decoding scriptPubKey hex: %w", err)
 	}
 	valueSats := int64(math.Round(result.Value * 1e8))
-	return scriptPubKey, valueSats, true, nil
+	return scriptPubKey, valueSats, result.Confirmations, true, nil
 }
 
 // GenerateBlocks is a thin regtest-only convenience wrapper (mining

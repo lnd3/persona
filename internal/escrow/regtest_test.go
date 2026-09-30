@@ -155,7 +155,7 @@ func regtestFundFreshOutput(t *testing.T, q *RPCQuerier, miner regtestMiner, scr
 		t.Fatalf("confirming funding tx: %v", err)
 	}
 
-	spk, val, ok, err := q.TxOut(context.Background(), fundTxHash.String(), 0)
+	spk, val, _, ok, err := q.TxOut(context.Background(), fundTxHash.String(), 0)
 	if err != nil {
 		t.Fatalf("TxOut on the real funding output: %v", err)
 	}
@@ -204,7 +204,7 @@ func regtestSettleAndConfirm(
 	if _, err := q.GenerateBlocks(1); err != nil {
 		t.Fatalf("confirming settlement tx: %v", err)
 	}
-	_, _, settled, err := q.TxOut(context.Background(), settleTxHash.String(), 0)
+	_, _, _, settled, err := q.TxOut(context.Background(), settleTxHash.String(), 0)
 	if err != nil {
 		t.Fatalf("TxOut on the settlement output: %v", err)
 	}
@@ -346,4 +346,72 @@ func TestRegtest_ReinforcedScriptBranches(t *testing.T) {
 		regtestSettleAndConfirm(t, q, miner, prevOut, prevTxOut, witnessScript, amount-fee,
 			[]*btcec.PrivateKey{subjectPriv, subjectArbiterPriv}, finalize)
 	})
+}
+
+// TestRegtest_VerifyFundedEnforcesRealConfirmationDepth is A006's own
+// mainnet-gate follow-up (2026-09-30): VerifyFunded's minConfirmations
+// parameter, exercised against a real node's real confirmation count,
+// not just the mock ChainQuerier verify_test.go already covers. Funds
+// a fresh output with exactly one confirmation, confirms a verifier
+// requiring more is correctly rejected, then mines further and
+// confirms the same call succeeds once the real depth catches up.
+func TestRegtest_VerifyFundedEnforcesRealConfirmationDepth(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping live regtest test in -short mode")
+	}
+	if !regtestReachable() {
+		t.Skip("no regtest node reachable at 127.0.0.1:18443, skipping live test")
+	}
+
+	q, err := NewRPCQuerier(RPCConfig{Host: "127.0.0.1:18443", User: "test", Pass: "test", DisableTLS: true})
+	if err != nil {
+		t.Fatalf("NewRPCQuerier: %v", err)
+	}
+	defer q.Shutdown()
+
+	miner := newRegtestMiner(t)
+	attesterPriv, _ := btcec.NewPrivateKey()
+	subjectPriv, _ := btcec.NewPrivateKey()
+	arbiterPriv, _ := btcec.NewPrivateKey()
+	attesterPub := attesterPriv.PubKey().SerializeCompressed()
+	subjectPub := subjectPriv.PubKey().SerializeCompressed()
+	arbiterPub := arbiterPriv.PubKey().SerializeCompressed()
+
+	sequence, err := SequenceForDays(14)
+	if err != nil {
+		t.Fatalf("SequenceForDays: %v", err)
+	}
+	witnessScript, err := UniversalScript(attesterPub, subjectPub, arbiterPub, sequence)
+	if err != nil {
+		t.Fatalf("UniversalScript: %v", err)
+	}
+	scriptPubKey, err := WitnessScriptHash(witnessScript)
+	if err != nil {
+		t.Fatalf("WitnessScriptHash: %v", err)
+	}
+
+	// regtestFundFreshOutput already mines 1 block to confirm the
+	// funding tx (see its own doc comment) — so at this point the
+	// output has exactly 1 real confirmation.
+	prevOut, _, amount := regtestFundFreshOutput(t, q, miner, scriptPubKey)
+
+	// A verifier requiring 3 confirmations must be rejected at 1.
+	err = VerifyFunded(context.Background(), q, prevOut.Hash.String(), prevOut.Index, scriptPubKey, amount, 3)
+	if err == nil {
+		t.Fatal("VerifyFunded with minConfirmations=3 at 1 real confirmation: expected an error, got nil")
+	}
+
+	// A verifier requiring exactly 1 confirmation must already pass.
+	if err := VerifyFunded(context.Background(), q, prevOut.Hash.String(), prevOut.Index, scriptPubKey, amount, 1); err != nil {
+		t.Errorf("VerifyFunded with minConfirmations=1 at 1 real confirmation: %v", err)
+	}
+
+	// Mine 2 more blocks (3 total) — now the 3-confirmation requirement
+	// must pass too.
+	if _, err := q.GenerateBlocks(2); err != nil {
+		t.Fatalf("GenerateBlocks(2): %v", err)
+	}
+	if err := VerifyFunded(context.Background(), q, prevOut.Hash.String(), prevOut.Index, scriptPubKey, amount, 3); err != nil {
+		t.Errorf("VerifyFunded with minConfirmations=3 at 3 real confirmations: %v", err)
+	}
 }

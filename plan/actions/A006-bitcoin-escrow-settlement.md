@@ -300,6 +300,57 @@ longer applies; that history is kept in the Log, not here.**
       logic (not self-certified) — hard gate, not a Task to check off
       solo; now tracked as its own action, [[A007]], filed 2026-09-30
       — this task is done once A007 records a pass
+- [ ] **Confirmation depth is a real, unresolved policy gap, found by
+      reading the actual code (2026-09-30), not just relying on the
+      task list above.** `RPCQuerier.TxOut` (`rpcquerier.go`) hardcodes
+      `result.Confirmations < 1` as its only threshold — one
+      confirmation is treated as fully funded, with no path to require
+      more. That's fine for regtest testing but not obviously safe for
+      real mainnet value: a 1-confirmation reorg could un-fund an
+      escrow a verifier already trusted as backing (e.g. to accept a
+      challenge or weight a bond). This is a **policy decision nobody
+      has actually made**, not a bug A007's code-correctness review
+      would catch — the code does exactly what it says, the question is
+      whether "exactly 1" is the right number for real money, possibly
+      scaled to bond size. Needs an explicit choice (a fixed N,
+      configurable per-caller, or scaled to `expectedAmountSats`) before
+      mainnet, not left at today's regtest-convenient default.
+- [ ] **No fee estimation or dust-limit logic exists anywhere in
+      `internal/escrow`, found the same way.** `NewSettlementPacket`
+      (`settle.go`) takes a fully caller-supplied `payouts
+      []*wire.TxOut` with zero fee calculation of its own; the only
+      place a fee value exists at all is a hardcoded `const fee =
+      int64(1000)` inside the **test** helpers
+      (`regtest_test.go`), never exercised against real mainnet fee
+      market conditions. A real caller needs actual fee-rate estimation
+      (this package has none) to build a settlement transaction that
+      confirms in reasonable time without wildly overpaying — and a
+      small enough bond minus a real fee could land below mainnet's
+      dust threshold (~330 sats for a P2WSH output), which nothing here
+      checks for either. Whether fee estimation belongs inside this
+      package or is the caller's job (same posture as the "no wallet
+      infrastructure" scope exclusion above) is an open question worth
+      deciding explicitly, not assumed either way.
+- [ ] **`RPCConfig`'s own doc comment already self-flags this, worth
+      surfacing as a real task rather than leaving as a comment**:
+      "this type makes no attempt to be safe for a mainnet node's
+      credentials" — plaintext `User`/`Pass` fields, an explicit
+      `DisableTLS` option. Fine for a local regtest node; a production
+      RPC connection needs real credential handling (secrets not in
+      plain Go struct fields passed around/logged carelessly) and TLS
+      by default. Adjacent to, not clearly inside, this action's own
+      "no wallet/key-management infrastructure" exclusion (this is
+      about the *chain-query* connection, not fund custody) — worth an
+      explicit decision on which action owns hardening it, rather than
+      falling through the gap between the two.
+- [ ] **Confirmed NOT a gap, checked rather than assumed**: chain
+      selection (mainnet vs. testnet vs. regtest) is already properly
+      parameterized — `FundingAddress` (`timelock.go`) takes
+      `*chaincfg.Params` as a real argument, nothing in the production
+      package (only test files) hardcodes
+      `chaincfg.RegressionNetParams`. Mainnet activation needs no
+      script/address-derivation code change, just the caller passing
+      `chaincfg.MainNetParams`.
 
 ## Log
 
@@ -593,3 +644,24 @@ against a real node; full repo clean aside from one confirmed
 unrelated, pre-existing flaky failure (`relay.damus.io` returning 503
 on `internal/attestation`'s own live test, an external service issue
 untouched by this session's work).
+
+2026-09-30 — **Scoped the mainnet-gate follow-up beyond A007's code
+review**, per direct request, by actually reading the production code
+(`rpcquerier.go`, `settle.go`, `timelock.go`) rather than assuming
+"Before mainnet" was already complete. Found three real, unresolved
+policy gaps a correctness-focused code review wouldn't necessarily
+flag as *wrong* (the code does exactly what it currently says): (1)
+confirmation depth is hardcoded to 1, not reorg-safe for real value,
+and nobody has actually chosen a real number; (2) zero fee-estimation
+or dust-limit logic exists anywhere in the package — the only fee
+value in the whole codebase is a `1000`-sat constant inside test
+helpers; (3) `RPCConfig` already self-documents that it "makes no
+attempt to be safe for a mainnet node's credentials" (plaintext
+user/pass, optional TLS disable) — a real comment left unaddressed as
+a task. Also explicitly confirmed one thing is *not* a gap, rather
+than assumed: chain-param selection (mainnet vs. regtest) is already
+properly parameterized via `*chaincfg.Params`, not hardcoded anywhere
+in production code. All recorded as distinct Tasks above, not folded
+into A007's own review scope — A007 reviews script/finalizer
+*correctness*; these are separate policy decisions this action's own
+"Before mainnet" gate should also require an explicit answer to.

@@ -178,6 +178,20 @@ in [[D001]].
   the opaque contract is already shaped so a future backend swap is a
   new implementation, not a redesign. No action needed here; noted as
   confirmation the design already accommodates it.
+  **Update, same day**: extracted for real —
+  `github.com/lnd3/paylayer@v0.1.0` (private repo, `GOPRIVATE`+SSH git
+  config needed to `go get` it). Contains the `PurchaseToken` contract,
+  `Backend` interface, `RequireToken` middleware, `StaticBackend`, and
+  the fault-injecting `Mock` (19 tests) — no real Lightning/L402
+  backend yet. cinder's own `A018` paid listener already integrated
+  against it (`StaticBackend`, zero behavior change); `EphemNet` has
+  already adopted it for its own payment-gated registration work
+  (`D010`). persona's own `internal/payment/l402.go` does real L402
+  challenge/header work paylayer doesn't attempt yet, so no reason to
+  adopt it now — but it's the natural place for persona's own
+  Aperture/Lightning work to eventually plug in as paylayer's first
+  real `Backend`, if/when that's ever wanted. Still a watch item, not
+  persona's own work.
 - **Cross-repo watch item (noted 2026-09-30, not this repo's own
   work)**: `cinder`'s and `EphemNet`'s own `deploy/cinderapps/Caddyfile`
   and `deploy/ephemnet-caddy/Caddyfile` both have the same real gap

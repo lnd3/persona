@@ -267,23 +267,33 @@ longer applies; that history is kept in the Log, not here.**
       `ReinforcedScript`'s both-arbiters-agree branch, plus a
       not-yet-finalizable case — `TestSettlement_*`
 - [x] Live regtest tests against a real `btcd` node — `regtest_test.go`:
-      `UniversalScript`'s mutual-settlement and both arbiter-assisted
-      branches (2 and 3) genuinely funded, broadcast, accepted by a
-      real node's mempool, and confirmed — not just in-process engine
-      validation. Gated behind a reachability probe (skips gracefully
-      if no node is listening at `127.0.0.1:18443`, the same pattern
-      A001's live-relay test already established), so this doesn't run
-      in most environments — see the file's own doc comment for how to
-      stand up a matching node. **Branch 4 (the CSV fallback)'s
-      live-node timing is *not* covered here** — BIP68's time-based
-      lock needs real median-time-past to advance ~14 days, which
-      isn't practical to wait out in a test and `btcd` has no
-      `setmocktime` RPC; that specific mechanism (comparing the
-      script's required sequence against the input's actual sequence)
-      is already exercised identically at the consensus-engine level
-      in `TestPreEscalationScript_*`, which is the same code path a
-      real node uses internally — a deliberate, stated scope boundary,
-      not a silent gap
+      **all of `UniversalScript`'s and `ReinforcedScript`'s non-
+      fallback branches** (`UniversalScript`'s 3: mutual settlement,
+      arbiter-sides-with-attester, arbiter-sides-with-subject;
+      `ReinforcedScript`'s 4: mutual settlement, both-arbiters-agree,
+      attester+own-arbiter, subject+own-arbiter) genuinely funded,
+      broadcast, accepted by a real node's mempool, and confirmed —
+      not just in-process engine validation. Gated behind a
+      reachability probe (skips gracefully if no node is listening at
+      `127.0.0.1:18443`, the same pattern A001's live-relay test
+      already established), so this doesn't run in most environments —
+      see the file's own doc comment for how to stand up a matching
+      node. **The CSV fallback branch's live-node timing is *not*
+      covered, for either script** — BIP68's time-based lock needs
+      real median-time-past to advance ~14 days, which isn't practical
+      to wait out in a test and `btcd` has no `setmocktime` RPC; that
+      specific mechanism (comparing the script's required sequence
+      against the input's actual sequence) is already exercised
+      identically at the consensus-engine level in
+      `TestPreEscalationScript_*`, which is the same code path a real
+      node uses internally — a deliberate, stated scope boundary, not
+      a silent gap. One real, generalizable test bug fixed along the
+      way: funding a fixed absolute sat amount from a coinbase breaks
+      once regtest's 150-block subsidy-halving decays the coinbase
+      below that amount, which happens fast under repeated test runs
+      against the same long-lived node — fixed by funding a fraction
+      (half) of each coinbase's own freshly-fetched value instead of a
+      constant
 
 ### Before mainnet
 - [ ] Independent security review of every script and the finalizer
@@ -556,3 +566,30 @@ a reachability probe (skip gracefully, same pattern as A001's live-relay
 test) since no node is reachable in most environments including this
 one by default — this was a deliberately stood-up exception for this
 session, not a standing environment change.
+
+2026-09-30 — Extended live regtest coverage to `ReinforcedScript`'s
+four non-fallback branches, refactoring the shared mining/funding/
+settling plumbing into reusable helpers (`regtestMiner`,
+`regtestFundFreshOutput`, `regtestSettleAndConfirm`) rather than a
+third near-copy of the same test body. Found and fixed a real,
+generalizable bug in the process: the original tests funded a fixed
+absolute sat amount from a fresh coinbase, which works fine at first
+but breaks once regtest's 150-block subsidy-halving decays a
+long-lived node's coinbases below that fixed amount — confirmed this
+concretely by re-running the full suite against the same node
+repeatedly and watching it start failing with "inputs less than
+amount spent," then "insufficient priority," then "negative output
+value" as the chain got mined deeper. Fixed by funding half of each
+coinbase's own freshly-fetched value instead of a constant — verified
+stable across repeated `-count=1` reruns against the same
+increasingly-mined chain. Documented (in `regtest_test.go`'s own doc
+comment) that this still isn't unbounded forever — a genuinely
+long-lived, never-reset node will eventually decay far enough to trip
+the same failure modes again, which is regtest's own subsidy design
+doing what it's supposed to, not a code bug; the fix is periodically
+wiping the node's datadir, not chasing an ever-smaller fraction.
+All 7 live branches (3 `UniversalScript` + 4 `ReinforcedScript`) pass
+against a real node; full repo clean aside from one confirmed
+unrelated, pre-existing flaky failure (`relay.damus.io` returning 503
+on `internal/attestation`'s own live test, an external service issue
+untouched by this session's work).

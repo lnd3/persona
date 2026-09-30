@@ -664,7 +664,16 @@ of `UniversalScript`'s four branches against it — real mempool
 acceptance and confirmation, not just in-process engine validation.
 Not a standing environment fixture — stood up for this session, not
 guaranteed reachable later, though `regtest_test.go` documents exactly
-how to reproduce it. Branch 4's live timing (needs `btcd`'s
-nonexistent `setmocktime` to test practically) and all of
-`ReinforcedScript`'s branches remain untested live; A007's own review
-itself hasn't started.
+how to reproduce it.
+
+2026-09-30 — Extended live regtest coverage to `ReinforcedScript`'s
+four non-fallback branches — all 7 live-testable branches across both
+scripts now pass against a real node. Found and fixed a real bug
+along the way: funding a fixed sat amount from a fresh coinbase
+breaks once regtest's 150-block subsidy-halving decays a long-lived
+node's coinbases below that amount, confirmed by watching the test
+suite fail progressively worse across repeated reruns against the
+same node. Fixed by funding a fraction of each coinbase's own value
+instead. Only the CSV fallback branch's live timing (a deliberate
+scope boundary, not an oversight) and the actual independent review
+itself remain.

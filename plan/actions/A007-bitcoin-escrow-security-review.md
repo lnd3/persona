@@ -108,17 +108,18 @@ the fix, it doesn't own the redesign.
       against that node — done 2026-09-30, `internal/escrow/
       rpcquerier.go` `RPCQuerier`, backed by `btcd`'s own `rpcclient`
       (same module, no new dependency)
-- [x] Actually fund, spend, and confirm `UniversalScript`'s mutual-
-      settlement and both arbiter-assisted branches (2 and 3) on a
-      real regtest node — done 2026-09-30, `regtest_test.go`, genuine
-      broadcast + real mempool acceptance + confirmation, not just
-      in-process engine validation. **Branch 4 (the CSV fallback) and
-      all of `ReinforcedScript`'s branches remain untested live** —
-      branch 4's live timing is a deliberate, stated scope boundary
-      (see A006's own Log: no `setmocktime` in `btcd`, and the
-      underlying sequence-comparison mechanism is already proven at
-      the consensus-engine level); `ReinforcedScript`'s branches
-      simply weren't gotten to this pass and are still open
+- [x] Actually fund, spend, and confirm every non-fallback branch of
+      both `UniversalScript` (3: mutual settlement, arbiter-sides-
+      with-attester, arbiter-sides-with-subject) and `ReinforcedScript`
+      (4: mutual settlement, both-arbiters-agree, attester+own-arbiter,
+      subject+own-arbiter) on a real regtest node — done 2026-09-30,
+      `regtest_test.go`, genuine broadcast + real mempool acceptance +
+      confirmation for all 7, not just in-process engine validation.
+      **Only the CSV fallback branch (shared by both scripts) remains
+      untested live** — a deliberate, stated scope boundary (see A006's
+      own Log: no `setmocktime` in `btcd`, and the underlying sequence-
+      comparison mechanism is already proven at the consensus-engine
+      level), not an oversight
 
 ### Arranging the review
 - [ ] Identify a reviewer meeting the "independent" bar above
@@ -162,3 +163,21 @@ future one (though `regtest_test.go` documents exactly how to
 reproduce it); branch 4's live timing and all of `ReinforcedScript`'s
 branches remain untested live. The review itself (identifying a
 reviewer, assembling the package, acting on findings) hasn't started.
+
+2026-09-30 — Extended live coverage to `ReinforcedScript`'s four
+non-fallback branches, closing the gap the previous entry left open.
+All 7 live-testable branches across both scripts now pass against a
+real node. Found and fixed a real bug specific to this action's own
+prerequisite while doing so: funding a fixed sat amount from a fresh
+coinbase breaks once regtest's 150-block subsidy-halving decays a
+long-lived node's coinbases below that amount — confirmed concretely
+by watching the same test suite fail progressively worse
+("insufficient inputs" → "insufficient priority" → "negative output
+value") across repeated reruns against the same node. Fixed by
+funding a fraction of each coinbase's own value rather than a
+constant; documented that this still isn't unbounded and a
+sufficiently long-lived, never-reset node will eventually need its
+datadir wiped regardless — regtest's own design, not a persona bug.
+**Still not started**: the CSV fallback branch's live timing (a
+deliberate, stated scope boundary, not an oversight — see A006's own
+Log) and the actual review itself.

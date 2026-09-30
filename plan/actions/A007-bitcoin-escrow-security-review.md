@@ -92,6 +92,72 @@ the fix, it doesn't own the redesign.
   one. The actual protection is operational: nobody funds one of these
   scripts with real mainnet sats before this action records a pass.
 
+## Outreach message (draft, 2026-09-30)
+
+Drafted for whoever the project operator identifies as a candidate
+reviewer — sharpened once already, specifically to avoid implying
+this is untested code being thrown over a wall (it isn't: rigorous
+self-testing is what makes asking for review worth someone's time, not
+a reason to skip it). Placeholders (`[...]`) are for the operator to
+fill in — repo access, timeline, compensation — none of which is this
+action's own call to make.
+
+> **Subject: Independent review request — Bitcoin escrow script
+> (thoroughly tested, needs a second opinion)**
+>
+> Hi [name],
+>
+> I'm working on a small identity/attestation protocol built on Nostr
+> (persona), and one piece of it — a bonding/slashing escrow mechanism
+> — moves real Bitcoin through some custom Script (`OP_IF`-branching
+> multisig plus a CSV timelock fallback) and hand-rolled PSBT
+> finalization logic.
+>
+> To be clear about where this stands: it's already been tested
+> rigorously on my end — every spending path validated against
+> `btcd`'s real consensus script engine, and every branch but one
+> genuinely funded, broadcast, and confirmed against a live regtest
+> node. I'm not asking you to find the bugs my own testing missed
+> through carelessness; I'm asking because **no amount of self-testing
+> substitutes for an independent review on fund-custody code** — the
+> person who designs a script and the person testing it share the same
+> blind spots by construction, and this is exactly the kind of code
+> where "I tested it myself and it passed" isn't a credible enough bar
+> before real money moves through it.
+>
+> **What I'm asking for**: a review of one self-contained Go package
+> (~700 lines of implementation, roughly matched in tests). I've put
+> together a review package that should get you oriented without
+> back-and-forth: scope, design rationale, exactly what's been tested
+> and how (including the one thing that *isn't* covered, and why),
+> known accepted tradeoffs, and concrete pass/fail criteria — so you're
+> evaluating against a stated bar, not guessing what "looks safe" means
+> to me.
+>
+> Link/location: `internal/escrow/SECURITY_REVIEW.md` in the repo,
+> pinned to commit `33dc3d44078567009e780e2d7b6e64507ce61bf4`. [repo
+> access: fill in]
+>
+> **Why this needed real design work, briefly**: the interesting part
+> is that a Bitcoin script can't reference a counterparty who doesn't
+> exist yet at funding time, which killed an earlier design outright —
+> the review package's own "why this needed its own design pass"
+> section has the full story, including why I stayed Bitcoin-native
+> instead of moving to a smart-contract chain.
+>
+> **What I need back**: findings ranked by severity, each with a
+> concrete failure scenario — not "this looks off," but "here's the
+> input that breaks it."
+>
+> [Timeline: ...]
+> [Compensation: ...]
+>
+> Happy to hop on a call first if that's easier than reading cold. Let
+> me know if you're interested or if this isn't the right fit for you.
+>
+> Thanks,
+> [your name]
+
 ## Tasks
 
 ### Prerequisite: regtest/testnet exercise
@@ -125,7 +191,11 @@ the fix, it doesn't own the redesign.
 - [ ] Identify a reviewer meeting the "independent" bar above — **the
       one piece of this action that isn't mine to do**: finding and
       engaging an actual human reviewer (or firm) is the user's own
-      call, not something to fabricate or simulate
+      call, not something to fabricate or simulate. An outreach
+      message is drafted above, ready to send once a candidate is
+      identified — sharpened once already so it doesn't undersell the
+      testing already done (self-testing is what makes asking for
+      review worth someone's time, not a reason to skip it)
 - [x] Assemble the review package — done 2026-09-30,
       `internal/escrow/SECURITY_REVIEW.md`: scope, design rationale,
       a categorized test-coverage summary (consensus-engine-level /
@@ -215,3 +285,17 @@ not something this action can do solo — that's a real business/
 logistics decision for the project's own operator, surfaced back to
 them rather than simulated. "Hand off and track turnaround" and
 "acting on findings" both remain blocked on that.
+
+2026-09-30 — Drafted the actual outreach message for the operator to
+send once they identify a candidate reviewer (recorded above under
+"Outreach message"). First draft was checked against a real risk:
+does it accidentally read as "untested code, please find the bugs,"
+which would both undersell the work already done and set the wrong
+expectation for a reviewer? Revised to lead with what's already been
+verified (consensus-engine validation, live regtest confirmation for
+all but one branch) and state directly why independent review is
+still asked for anyway — self-testing can't catch a design flaw the
+author never thought to test for in the first place, and "I tested it
+myself" isn't a credible enough bar for fund-custody code regardless
+of how true it is. Still not this action's call to make: who actually
+receives it, and when.

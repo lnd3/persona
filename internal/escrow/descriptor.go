@@ -25,8 +25,11 @@ var preEscalationDescriptorRE = regexp.MustCompile(`^wsh\(and_v\(v:pk\(([0-9a-f]
 var ErrMalformedDescriptor = fmt.Errorf("escrow: not a recognized pre-escalation descriptor")
 
 // FormatPreEscalationDescriptor renders the standard descriptor
-// string for a PreEscalationScript(ownerPubKey, sequence) output,
-// suitable for A005's `EscrowRef`.
+// string for a standalone PreEscalationScript(ownerPubKey, sequence)
+// output. Not what a real bond/stake's `EscrowRef` actually uses today
+// — those are UniversalScript/ReinforcedScript outputs, encoded via
+// FormatWitnessScriptRef below — this remains a narrow, valid tool
+// for exactly the single-key CSV shape on its own.
 func FormatPreEscalationDescriptor(ownerPubKey []byte, sequence uint32) (string, error) {
 	if err := validatePubKey(ownerPubKey); err != nil {
 		return "", err

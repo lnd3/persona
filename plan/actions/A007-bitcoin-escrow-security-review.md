@@ -122,10 +122,24 @@ the fix, it doesn't own the redesign.
       level), not an oversight
 
 ### Arranging the review
-- [ ] Identify a reviewer meeting the "independent" bar above
-- [ ] Assemble the review package (commit, code, tests, A006's plan
-      file as design rationale)
-- [ ] Hand off and track turnaround
+- [ ] Identify a reviewer meeting the "independent" bar above — **the
+      one piece of this action that isn't mine to do**: finding and
+      engaging an actual human reviewer (or firm) is the user's own
+      call, not something to fabricate or simulate
+- [x] Assemble the review package — done 2026-09-30,
+      `internal/escrow/SECURITY_REVIEW.md`: scope, design rationale,
+      a categorized test-coverage summary (consensus-engine-level /
+      real-regtest-node-level / not-covered-and-why), the known
+      already-accepted residuals, concrete pass criteria, and exact
+      commands to reproduce every result. Caught and fixed one real
+      issue while assembling it: the package's own top-level doc
+      comment (and `PreEscalationScript`'s) still described the
+      *superseded* escalation-based design verbatim — precisely the
+      kind of stale documentation that would mislead an external
+      reviewer's first orientation to the code, fixed before handing
+      anything to anyone
+- [ ] Hand off and track turnaround — blocked on identifying a
+      reviewer above
 
 ### Acting on findings
 - [ ] Triage findings against the stated pass criteria
@@ -181,3 +195,23 @@ datadir wiped regardless — regtest's own design, not a persona bug.
 **Still not started**: the CSV fallback branch's live timing (a
 deliberate, stated scope boundary, not an oversight — see A006's own
 Log) and the actual review itself.
+
+2026-09-30 — Started arranging the review. Assembled the actual
+review package (`internal/escrow/SECURITY_REVIEW.md`) — the one piece
+of "arranging" genuinely within scope to do directly: scope, design
+rationale (including a pointer to the seriously-considered-and-
+rejected EVM pivot, since "why not a smart contract" is a fair first
+question), a categorized test-coverage summary, the known
+already-accepted residuals, concrete pass criteria, and exact
+reproduction commands. Assembling it surfaced a real, worth-fixing
+issue on its own: the package's own top-level doc comment (`go doc
+./internal/escrow`) and `PreEscalationScript`'s doc comment still
+described the superseded escalation-based design verbatim, months
+out of date relative to the actual code — exactly the kind of stale
+documentation that would mislead an external reviewer's first
+orientation. Fixed both before handing anything to anyone. **Not
+done**: identifying and actually engaging a reviewer is explicitly
+not something this action can do solo — that's a real business/
+logistics decision for the project's own operator, surfaced back to
+them rather than simulated. "Hand off and track turnaround" and
+"acting on findings" both remain blocked on that.

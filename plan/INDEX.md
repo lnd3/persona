@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-30 06:49:53 UTC*
+*Last updated: 2026-09-30 07:07:07 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -41,3 +41,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A005](actions/A005-bonding-slashing-dispute-resolution.md) | Bonding/slashing dispute resolution (dispute type 1 only) | DONE | D001 | TBD |
 | [A006](actions/A006-bitcoin-escrow-settlement.md) | Bitcoin escrow settlement (script construction, funding, on-chain verification) | PLANNING | D001 | TBD |
 | [A007](actions/A007-bitcoin-escrow-security-review.md) | Independent security review of the Bitcoin escrow scripts | PLANNING | D001 | TBD |
+| [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration | PLANNING | D001 | TBD |

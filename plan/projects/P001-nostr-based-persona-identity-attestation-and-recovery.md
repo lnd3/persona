@@ -652,3 +652,19 @@ criteria rather than "looks safe": no valid spend without a real
 matching signature, no branch satisfiable with fewer signatures than
 designed, no fallback spend before its CSV window has genuinely
 elapsed.
+
+2026-09-30 — Found a real regtest node opportunistically: `btcd`'s
+full daemon source was already sitting in this project's own Go
+module cache (a transitive dependency of `txscript`/`psbt`), so
+`go install github.com/btcsuite/btcd@v0.24.2` built a real, working
+node directly — no new binary dependency. Built the real `ChainQuerier`
+backend (`RPCQuerier`, `internal/escrow/rpcquerier.go`) A006 had left
+as an interface, and genuinely funded, broadcast, and confirmed three
+of `UniversalScript`'s four branches against it — real mempool
+acceptance and confirmation, not just in-process engine validation.
+Not a standing environment fixture — stood up for this session, not
+guaranteed reachable later, though `regtest_test.go` documents exactly
+how to reproduce it. Branch 4's live timing (needs `btcd`'s
+nonexistent `setmocktime` to test practically) and all of
+`ReinforcedScript`'s branches remain untested live; A007's own review
+itself hasn't started.

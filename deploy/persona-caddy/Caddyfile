@@ -43,3 +43,19 @@
 	root * /srv/site
 	file_server
 }
+
+# Explicit http://-\>https:// redirect for real visitor traffic — found
+# missing live 2026-09-30 (cinder's and EphemNet's own Caddyfiles have
+# the same gap: `auto_https disable_redirects` above turns off Caddy's
+# *automatic* redirect listener, since it was "meaningless" for
+# cinder's own original problem — real traffic there always arrives via
+# nginx's :443 SNI passthrough, never bare :80 — but that's not a safe
+# assumption for a landing page real people might type as
+# "solemn.network" without a scheme, or paste as a bare http:// link.
+# Safe to add explicitly: cinder's own D007 Log confirms Caddy's
+# internal ACME HTTP-01 challenge responder on :80 stays active
+# independent of any site-block routes defined here, so this redirect
+# can't interfere with certificate renewal.
+http://{$PERSONA_DOMAIN} {
+	redir https://{host}{uri} permanent
+}

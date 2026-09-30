@@ -36,6 +36,36 @@ attestation primitive, arguably a tighter match than "sovran" is for
 the identity/recovery side — not decided which domain ends up
 fronting what, or whether both stay in use for different pieces.
 
+**Naming split decided (2026-09-30), resolving the tension above**:
+persona is tightly coupled to Nostr's own attestation primitive, and
+that primitive is bigger than just this one identity product — D001
+already designed the `claim_type` namespace as an open, NIP-style
+registry, general enough that something other than identity/recovery
+could build on it later. So:
+- **`solemn`** = the protocol layer — the Nostr-based attestation
+  primitive itself (the `kind:3300` event format, `claim_type`
+  open-registry governance), not identity-specific by nature. Lives at
+  `solemn.network`. Not built yet — currently just the domain
+  designated for it; the actual protocol-spec/registry page is
+  unbuilt, separate future work, not assumed to happen automatically
+  from this naming decision alone.
+- **`persona`** = the product — this repo's own identity/recovery/
+  trust/sybil-resistance system, one implementation built on the
+  `solemn` protocol (the way a specific client relates to the Nostr
+  protocol itself, or an app relates to HTTP). Repo/thesis/README name
+  stays "persona," unchanged. Its own landing page (`site/index.html`,
+  2026-09-30) is intended to live at `persona.solemn.network` —
+  subdomain of the protocol, not the top-level domain itself — mirroring
+  the `persona.cinderapps.org` subdomain pattern already in use for
+  hosting.
+- If a second, genuinely different product later wants to build on the
+  same attestation primitive (not assumed, not currently planned), it
+  would get its own subdomain of `solemn.network` alongside `persona`,
+  the same way `EphemNet` and `persona` both sit under the `lnd3`
+  umbrella today without needing to share a brand name.
+- `persona.mera.network` and `sovranpersona.com` remain owned but are
+  no longer the lead candidates for this repo's own domain.
+
 Hosting already available (2026-09-27), separate from the above:
 `persona.cinderapps.org` (live) and `dev4637.persona.cinderapps.org`
 (dev) — subdomains of `cinder`'s existing `cinderapps.org` multi-

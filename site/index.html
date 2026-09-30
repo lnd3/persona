@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>persona</title>
+<meta name="description" content="A persistent, keypair-anchored identity that needs no institutional countersignature — built on Nostr, with economic sybil-resistance and attestation-based recovery.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --border: #d9dbe0;
+    --card: #ffffff;
+    --accent: #b45309;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --warn: #92400e;
+    --code-bg: #f1f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214;
+      --fg: #e8e8ea;
+      --muted: #9aa0a6;
+      --border: #2e3035;
+      --card: #1b1c1f;
+      --accent: #e0932e;
+      --accent-fg: #16130a;
+      --ok: #3fb950;
+      --warn: #e3a53c;
+      --code-bg: #1e2024;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 820px; margin: 0 auto; padding: 0 20px; }
+  header.hero { padding: 72px 0 48px; text-align: center; }
+  header.hero .tag {
+    display: inline-block;
+    font-size: 0.78rem;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 999px;
+    padding: 3px 12px;
+    margin-bottom: 18px;
+    letter-spacing: 0.02em;
+  }
+  h1 { font-size: 2.2rem; margin: 0 0 14px; letter-spacing: -0.02em; }
+  header.hero p.lead { font-size: 1.1rem; color: var(--muted); max-width: 640px; margin: 0 auto; }
+  .cta-row { display: flex; gap: 12px; justify-content: center; margin-top: 30px; flex-wrap: wrap; }
+  .btn {
+    display: inline-block;
+    padding: 10px 20px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.92rem;
+    text-decoration: none;
+    border: 1px solid var(--border);
+  }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn-ghost { color: var(--fg); }
+
+  nav.toc { padding: 18px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  nav.toc .wrap { display: flex; flex-wrap: wrap; gap: 6px 18px; justify-content: center; font-size: 0.84rem; }
+  nav.toc a { color: var(--muted); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+
+  section { padding: 44px 0; border-top: 1px solid var(--border); }
+  section h2 { font-size: 1.4rem; margin: 0 0 6px; }
+  section h3 { font-size: 1.08rem; margin: 26px 0 6px; }
+  section .kicker { color: var(--accent); font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+  section p { color: var(--fg); }
+  section p.muted { color: var(--muted); }
+  section ul { color: var(--fg); padding-left: 22px; }
+  section ul li { margin-bottom: 6px; }
+
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 20px; }
+  @media (max-width: 640px) { .cards { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  .card h3 { margin: 0 0 8px; font-size: 1.02rem; }
+  .card p { margin: 0; color: var(--muted); font-size: 0.92rem; }
+
+  .callout {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--accent);
+    border-radius: 8px;
+    padding: 14px 18px;
+    margin: 18px 0;
+    font-size: 0.94rem;
+  }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.warn .lbl { color: var(--warn); font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 4px; }
+  .callout.ok { border-left-color: var(--ok); }
+  .callout.ok .lbl { color: var(--ok); font-weight: 700; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; display: block; margin-bottom: 4px; }
+
+  pre {
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    font-size: 0.85rem;
+  }
+  code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  section code:not(pre code) {
+    background: var(--code-bg);
+    border-radius: 4px;
+    padding: 1px 6px;
+    font-size: 0.9em;
+  }
+
+  table.status { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  table.status th, table.status td { text-align: left; padding: 9px 10px; border-bottom: 1px solid var(--border); font-size: 0.88rem; vertical-align: top; }
+  table.status th { color: var(--muted); font-weight: 600; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+  .dot-done { background: var(--ok); }
+  .dot-review { background: var(--warn); }
+
+  .timeline { border-left: 2px solid var(--border); margin-top: 20px; padding-left: 20px; }
+  .timeline .item { margin-bottom: 20px; position: relative; }
+  .timeline .item::before {
+    content: "";
+    position: absolute;
+    left: -25px;
+    top: 6px;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .timeline .item h4 { margin: 0 0 4px; font-size: 0.95rem; }
+  .timeline .item p { margin: 0; color: var(--muted); font-size: 0.9rem; }
+
+  .grid-links { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+  @media (max-width: 640px) { .grid-links { grid-template-columns: 1fr; } }
+  .link-card {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px 16px;
+    text-decoration: none;
+    color: var(--fg);
+  }
+  .link-card .h { font-weight: 600; font-size: 0.92rem; }
+  .link-card .d { color: var(--muted); font-size: 0.82rem; margin-top: 2px; }
+
+  footer { padding: 40px 0 60px; text-align: center; color: var(--muted); font-size: 0.85rem; }
+  footer .build-info { margin-top: 6px; font-size: 0.72rem; opacity: 0.7; }
+  footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <span class="tag">Built on the solemn attestation protocol</span>
+    <h1>An identity that needs no institutional countersignature</h1>
+    <p class="lead">
+      persona binds "this is the same entity, consistently, over time"
+      to a Nostr keypair instead of a state- or employer-issued
+      document — with peer attestation for portable reputation,
+      economic (not biometric) sybil resistance, and social recovery
+      for lost or stolen keys, all built on primitives that already
+      exist and already work in production.
+    </p>
+    <div class="cta-row">
+      <a class="btn btn-primary" href="https://github.com/lnd3/persona">View the code</a>
+      <a class="btn btn-ghost" href="#review">Independent review</a>
+      <a class="btn btn-ghost" href="#how-it-works">How it works</a>
+    </div>
+  </div>
+</header>
+
+<nav class="toc">
+  <div class="wrap">
+    <a href="#why">Why</a>
+    <a href="#how-it-works">How it works</a>
+    <a href="#trust">Trust model</a>
+    <a href="#sybil">Sybil resistance</a>
+    <a href="#recovery">Recovery</a>
+    <a href="#escrow">Bitcoin bonding &amp; slashing</a>
+    <a href="#payment">Payment / L402</a>
+    <a href="#review">Review status</a>
+    <a href="#relationship">Related projects</a>
+    <a href="#status">Status</a>
+  </div>
+</nav>
+
+<section id="why">
+  <div class="wrap">
+    <div class="kicker">The claim</div>
+    <h2>Money never needed a bank's permission. Identity shouldn't need a government's.</h2>
+    <p>
+      A verifier who actually cares about "is this the same entity I
+      dealt with before, and do people I trust vouch for it" never
+      needed an institution in the middle — that's a real, working
+      subset of the identity problem, not the whole thing. It sidesteps
+      the much harder problem of self-issued <em>state-recognized</em>
+      credentials (professional licensing, legal capacity, regulated-
+      goods age verification) rather than pretending to solve it.
+    </p>
+    <p>
+      Nostr already demonstrates persistent, portable, keypair-based
+      identity with no platform lock-in, at real production scale.
+      NIP-98 (HTTP auth via signed events) and NIP-58 (badges) are
+      already-standardized patterns for sign-in and attestation. NIP-57
+      ("zaps") already proves identity plus Lightning payment works in
+      production. persona doesn't invent new wire formats where an
+      existing one already does the job — it fills in the two pieces
+      Nostr deliberately leaves unsolved.
+    </p>
+    <div class="callout">
+      <span class="lbl" style="color:var(--accent)">The honest gap this fills</span>
+      Nostr has no protocol-level spam/sybil resistance — anyone can
+      mint unlimited free keypairs, which is exactly why deployed Nostr
+      apps feel noisy. Without a real fix, peer attestation inherits
+      that weakness and becomes gameable at scale. Solving that — not
+      assuming it away — is most of what this project actually is.
+    </div>
+  </div>
+</section>
+
+<section id="how-it-works">
+  <div class="wrap">
+    <div class="kicker">How it works</div>
+    <h2>Standard Nostr primitives, one new event kind</h2>
+    <p>
+      A persona <em>is</em> a standard secp256k1 Nostr keypair — no new
+      key format, no new signature scheme. Reputation is built from a
+      new attestation event kind (<code>kind:3300</code>): a signed
+      claim, from one key about another (or about itself), typed by a
+      reverse-domain-namespaced <code>claim_type</code>
+      (<code>net.persona.core.skill</code>,
+      <code>net.persona.core.arbiter_commitment</code>, and so on) —
+      the same permission-free minting pattern NIP extensions already
+      use for event kinds, applied one level down to claim types
+      instead of forcing a centralized registry to bless new claim
+      shapes.
+    </p>
+    <p class="muted">
+      That attestation format — the event shape, the open claim-type
+      registry — is a general-purpose protocol layer, not something
+      inherently identity-specific; persona is the identity/recovery/
+      trust product built on top of it, not the protocol itself.
+    </p>
+    <p>
+      Every attestation is content-addressed and independently
+      re-verifiable: a third party fetches the raw event, checks its
+      signature from scratch, and re-derives everything else (claim
+      hash, embedded payment receipt, trust weight) without trusting
+      any intermediary — including persona's own reference code.
+    </p>
+  </div>
+</section>
+
+<section id="trust">
+  <div class="wrap">
+    <div class="kicker">Trust model</div>
+    <h2>Relative to the viewer, never a global score</h2>
+    <p>
+      There is no canonical persona reputation number. A verifier
+      weighs a claim against <em>their own</em> web-of-trust graph — a
+      bounded-depth, decay-by-half walk from their own trusted set,
+      PGP-style — not a universal score anyone could capture by
+      controlling it. This is a deliberate, non-negotiable design
+      constraint, not an implementation detail: any single canonical
+      trust number is a single point someone can buy, coerce, or
+      subvert, which defeats the entire point of not needing an
+      institutional countersignature in the first place.
+    </p>
+  </div>
+</section>
+
+<section id="sybil">
+  <div class="wrap">
+    <div class="kicker">Sybil resistance</div>
+    <h2>Economic cost, never proof-of-personhood</h2>
+    <p>
+      An attestation only counts toward a subject's weighted trust if
+      it was published with either a small Lightning-metered payment
+      attached (L402), or backed by a bonded stake that's slashable if
+      the claim is later disputed and found false — the same bonded-
+      reporting pattern real systems like Kleros and Augur's dispute
+      bonds already use.
+    </p>
+    <div class="callout warn">
+      <span class="lbl">Explicitly rejected</span>
+      Biometric proof-of-personhood (WorldCoin-style). It works
+      technically, but it's centralizing and coercive — in direct
+      tension with a no-gatekeeper identity system's entire reason for
+      existing. A mechanism that requires trusting one company's iris
+      scanners is not a smaller version of the problem this project
+      solves; it's the problem this project exists to avoid.
+    </div>
+    <p class="muted">
+      The dispute-adjudication mechanics themselves — who arbitrates, how
+      a slashed stake actually gets seized on-chain, what stops the
+      adjudication step from being gamed — are genuinely hard, only
+      partially resolved (see Bonding &amp; slashing below), and stated
+      as such rather than glossed over.
+    </p>
+  </div>
+</section>
+
+<section id="recovery">
+  <div class="wrap">
+    <div class="kicker">Recovery</div>
+    <h2>Social recovery, reusing the attestation primitive — not a second system</h2>
+    <p>
+      A persona designates recovery guardians via a
+      <code>recovery_guardian</code> attestation claim; a threshold of
+      matching <code>recovery_confirm</code> claims from those
+      guardians authorizes recovery. It's the same claim/attestation
+      machinery built for reputation, reused rather than duplicated —
+      no separate guardian-recovery subsystem to maintain or reason
+      about independently. The underlying key-splitting is standard
+      Shamir secret sharing (SSKR-style, GF(256)), with shares
+      delivered guardian-to-owner over NIP-44 encrypted events.
+    </p>
+    <div class="callout">
+      <span class="lbl" style="color:var(--warn)">Stated honestly, not marketed around</span>
+      Social recovery <strong>mitigates</strong> key-loss risk. It does
+      not eliminate it. Any threshold-guardian scheme has its own real
+      attack surface — coercing or colluding against a threshold of
+      someone's guardians is a genuine, unresolved-by-this-design
+      attack vector, not a hypothetical edge case. Anyone evaluating
+      this for real custody should weigh that explicitly, not take
+      "recoverable" to mean "unlosable."
+    </div>
+  </div>
+</section>
+
+<section id="escrow">
+  <div class="wrap">
+    <div class="kicker">Bonding &amp; slashing</div>
+    <h2>Bitcoin-native escrow for disputed attestations</h2>
+    <p>
+      Bonds and challenge stakes are held in plain Bitcoin script — no
+      custodian, no sidechain, no smart-contract-chain trust
+      assumptions. A dedicated design pass considered and rejected
+      moving this to an EVM chain (Hyperliquid's HyperEVM specifically
+      evaluated with real numbers: 24 validators, BFT to ~1/3
+      malicious, and every BTC-bridging path onto an EVM chain requires
+      trusting some off-chain signer set — bridge exploits total over
+      $2.8B since 2022). The deeper reason to stay Bitcoin-native: no
+      chain's consensus can adjudicate a dispute's actual
+      <em>substance</em> anyway — that's a human judgment call, not
+      on-chain-computable data — so borrowing a smart-contract chain
+      buys nothing but a new trust assumption.
+    </p>
+    <h3>The scripts</h3>
+    <p>
+      Two static, upfront-configured P2WSH scripts, each a single
+      script with no escalation transaction:
+    </p>
+    <ul>
+      <li><code>UniversalScript</code> — mutual settlement any time (no
+        timelock), the arbiter siding with the attester, the arbiter
+        siding with the subject, or — as a last resort — a CSV
+        (BIP68) timelocked self-release if nobody ever engages.</li>
+      <li><code>ReinforcedScript</code> — adds a fifth branch: both
+        of two <em>independently, previously</em> pre-committed
+        arbiters agreeing settles the dispute with no live disputant
+        input needed at all, available only when the subject has
+        published a standing <code>arbiter_commitment</code>
+        attestation ahead of time.</li>
+    </ul>
+    <p>
+      Settlement is plain PSBT: an unsigned packet each cooperating
+      party signs independently, with hand-written finalizers (the
+      standard library's own multisig finalizer can't recognize
+      <code>OP_IF</code>-branching or single-key-CSV scripts as plain
+      multisig) that <strong>independently re-validate every
+      precondition</strong> — including CSV sequence — rather than
+      trusting that a present signature implies a satisfiable branch.
+    </p>
+    <h3>Known, accepted residual</h3>
+    <p class="muted">
+      If two independently pre-committed arbiters genuinely disagree
+      under <code>ReinforcedScript</code>, there's no live tie-break
+      baked into the static script — whichever competing spend
+      confirms first wins. Accepted as a rare case (both arbiters must
+      actually disagree) rather than solved with more machinery, and
+      documented as such rather than hidden.
+    </p>
+    <h3>Real-node proof, not just simulation</h3>
+    <p>
+      Every branch — funding, signing, broadcast, mempool acceptance,
+      and confirmation — has been exercised against a real Bitcoin
+      node's actual consensus engine (<code>btcd</code>, regtest), not
+      just validated in-process. All seven non-fallback branches across
+      both scripts pass live. The one deliberately uncovered case: the
+      CSV fallback branch's live-node timing (BIP68 needs real elapsed
+      median-time-past; regtest has no fast-forward primitive for it) —
+      the underlying sequence-comparison logic is already proven
+      identical at the consensus-engine level, so this is a stated
+      scope boundary, not a silent gap.
+    </p>
+  </div>
+</section>
+
+<section id="payment">
+  <div class="wrap">
+    <div class="kicker">Payment</div>
+    <h2>L402-metered attestations, backend-agnostic</h2>
+    <p>
+      An attester who wants a paid attestation weighted more heavily
+      requests a receipt from a gateway; the gateway responds with a
+      real L402 402 challenge (macaroon + Lightning invoice); once
+      paid, the gateway signs a <code>Receipt</code> that gets embedded
+      in the finalized attestation event — independently re-verifiable
+      by any third party against the gateway's own public key, without
+      trusting the gateway's word for it after the fact.
+    </p>
+    <p class="muted">
+      Proven end-to-end against persona's own real code with a
+      simulated L402 gate (no infrastructure cost); a real Aperture +
+      Lightning-regtest integration is deliberately staged separately,
+      given the genuinely larger setup it requires (two funded
+      channel-connected nodes, a real Aperture deployment).
+    </p>
+  </div>
+</section>
+
+<section id="review">
+  <div class="wrap">
+    <div class="kicker">Independent review — wanted</div>
+    <h2>The Bitcoin escrow scripts need eyes that aren't ours</h2>
+    <p>
+      Everything above has been tested extensively — consensus-engine-
+      level script execution tests, full PSBT build→sign→finalize→
+      extract→re-validate round trips, and live regtest broadcast/
+      confirmation for every non-fallback branch of both scripts. That
+      is necessary and it is not sufficient. Self-testing, however
+      rigorous, shares blind spots with the person who wrote the code —
+      independent review is a different category of assurance, not
+      just a bug hunt, and it's the one thing this project cannot give
+      itself.
+    </p>
+    <p>
+      If you write or review Bitcoin script for a living and have half
+      an hour to look at two scripts and a hand-written PSBT finalizer,
+      this is a concrete, scoped ask — not "audit the whole repo."
+    </p>
+    <div class="cta-row" style="justify-content:flex-start; margin-top:20px;">
+      <a class="btn btn-primary" href="https://github.com/lnd3/persona/blob/main/internal/escrow/SECURITY_REVIEW.md">Read the review package</a>
+      <a class="btn btn-ghost" href="https://github.com/lnd3/persona/tree/main/internal/escrow">Browse internal/escrow</a>
+    </div>
+  </div>
+</section>
+
+<section id="relationship">
+  <div class="wrap">
+    <div class="kicker">Related projects</div>
+    <h2>Shared philosophy, no runtime dependency</h2>
+    <div class="cards">
+      <div class="card">
+        <h3>cinder</h3>
+        <p>Same architectural philosophy — capability keys, no
+        accounts, macaroon-authenticated ownership, L402 payment — with
+        zero functional runtime dependency on cinder's own code or
+        API. Not a cinder extension or companion.</p>
+      </div>
+      <div class="card">
+        <h3>EphemNet</h3>
+        <p>Pairs naturally for self-hosting a relay behind a home NAT —
+        EphemNet's DNS forwarding makes that concretely possible — but
+        doesn't depend on it either. Public Nostr relays and self-run
+        infrastructure both remain open options.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="status">
+  <div class="wrap">
+    <div class="kicker">Status</div>
+    <h2>What's built, what's still open</h2>
+    <table class="status">
+      <tr><th>Layer</th><th>Status</th></tr>
+      <tr><td>Identity &amp; attestation events</td><td><span class="dot dot-done"></span>Done, tested, live relay round trips</td></tr>
+      <tr><td>Relative trust computation</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
+      <tr><td>Recovery (guardian attestation + SSKR)</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
+      <tr><td>Payment integration (L402 receipt gateway)</td><td><span class="dot dot-done"></span>Done, tested; simulated Aperture template proven end-to-end</td></tr>
+      <tr><td>Bonding/slashing protocol layer</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
+      <tr><td>Bitcoin escrow scripts &amp; settlement</td><td><span class="dot dot-done"></span>Implemented, tested against a real node</td></tr>
+      <tr><td>Independent security review (escrow)</td><td><span class="dot dot-review"></span>Review package ready — awaiting a reviewer</td></tr>
+      <tr><td>Real Aperture + Lightning-regtest integration</td><td><span class="dot dot-review"></span>Deliberately deferred, not started</td></tr>
+    </table>
+    <p class="muted" style="margin-top:16px;">
+      In short: the identity, trust, recovery, and payment layers are
+      done and tested. The Bitcoin escrow layer is implemented and
+      proven against a real node, but — by design — not treated as
+      mainnet-ready until it clears independent review.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    persona — MIT licensed
+    <div class="grid-links" style="margin-top:16px; max-width:420px; margin-left:auto; margin-right:auto;">
+      <a class="link-card" href="https://github.com/lnd3/persona">
+        <div class="h">Source</div>
+        <div class="d">github.com/lnd3/persona</div>
+      </a>
+      <a class="link-card" href="https://github.com/lnd3/persona/blob/main/LICENSE">
+        <div class="h">License</div>
+        <div class="d">MIT</div>
+      </a>
+    </div>
+    <div class="build-info">${PERSONA_BUILD_INFO}</div>
+  </div>
+</footer>
+
+</body>
+</html>

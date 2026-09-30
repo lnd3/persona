@@ -263,6 +263,15 @@ in [[D001]].
       still-missing pieces. Regtest/testnet exercise is this action's
       own prerequisite, ahead of the review itself — cheaper bugs
       should be caught cheaply before spending a reviewer's time.
+- [x] File [[A008]]: Aperture/L402 integration template — done
+      2026-09-30, staged deliberately: Stage 1 (a simulated L402 gate
+      fronting the real gateway handler, proving persona's own code
+      end to end at no infrastructure cost) implemented in the same
+      pass; Stage 2 (real `lnd`+`aperture` regtest infrastructure)
+      deferred, its actual requirements (two funded Lightning nodes, a
+      real channel, real Aperture config) named concretely rather than
+      left vague, same "defer the harder cross-domain slice"
+      discipline as A006's own escrow-settlement follow-up
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;
@@ -686,3 +695,17 @@ doing so (the package's own top-level comment still described the
 superseded escalation design). Identifying and engaging an actual
 reviewer is explicitly not something to fabricate — surfaced back to
 the project's own operator as a real decision, not simulated.
+
+2026-09-30 — Filed and implemented A008's Stage 1: a simulated L402
+gate fronting A004's real gateway handler, proving persona's own
+challenge-parsing/header-construction/receipt-signing/independent-
+verification code is wired correctly end to end, at no infrastructure
+cost. Checked Stage 2 (real `lnd`+`aperture` regtest) concretely
+before deferring it — both resolve as real Go modules, but `lnd`
+requires Go ≥1.25.13, the same toolchain-bump risk pattern A003's
+`hashicorp/vault/shamir` lesson already taught, mitigated the same way
+`btcd` was in A006/A007 (standalone external binaries, never imported
+into persona's own module). Named Stage 2's real requirements
+concretely (two funded Lightning nodes, a real channel, real Aperture
+config, orchestration code) rather than leaving them vague, and
+deferred it deliberately as a separate, much larger undertaking.

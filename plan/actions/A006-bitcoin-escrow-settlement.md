@@ -332,22 +332,69 @@ longer applies; that history is kept in the Log, not here.**
       `minConfirmations` value to actually pass (fixed N vs. scaled to
       bond size) — this action makes that choice possible and explicit,
       it doesn't make it for every future caller.
-- [ ] **No fee estimation or dust-limit logic exists anywhere in
-      `internal/escrow`, found the same way.** `NewSettlementPacket`
-      (`settle.go`) takes a fully caller-supplied `payouts
-      []*wire.TxOut` with zero fee calculation of its own; the only
-      place a fee value exists at all is a hardcoded `const fee =
-      int64(1000)` inside the **test** helpers
-      (`regtest_test.go`), never exercised against real mainnet fee
-      market conditions. A real caller needs actual fee-rate estimation
-      (this package has none) to build a settlement transaction that
-      confirms in reasonable time without wildly overpaying — and a
-      small enough bond minus a real fee could land below mainnet's
-      dust threshold (~330 sats for a P2WSH output), which nothing here
-      checks for either. Whether fee estimation belongs inside this
-      package or is the caller's job (same posture as the "no wallet
-      infrastructure" scope exclusion above) is an open question worth
-      deciding explicitly, not assumed either way.
+- [ ] **Fee/dust-limit gap, re-scoped with real numbers (2026-09-30),
+      not just identified.** `NewSettlementPacket` (`settle.go`) takes
+      a fully caller-supplied `payouts []*wire.TxOut` with zero fee
+      calculation of its own; the only fee value anywhere in the whole
+      codebase is a hardcoded `const fee = int64(1000)` inside the
+      **test** helpers (`regtest_test.go`), never exercised against
+      real mainnet fee market conditions.
+      - **This package is in an unusually strong position to solve this
+        exactly, not just estimate it** — unlike a general-purpose
+        wallet, every settlement's witness shape is fully known ahead
+        of time (one of a small, fixed set of branches), so the real
+        spending vsize can be *measured*, not guessed. Measured
+        directly (throwaway test, not committed): `UniversalScript`'s
+        own witness script is 263 bytes, `ReinforcedScript`'s 337 bytes
+        (more pubkeys/branches); a 2-of-2 branch spend (mutual
+        settlement, arbiter-sides-with-X, both-arbiters-agree) weighs
+        in at vsize 199 (`UniversalScript`) / 218
+        (`ReinforcedScript`); the single-sig CSV fallback branch at
+        vsize 181 / 200 respectively (fewer witness elements,
+        same-size embedded witness script dominates either way).
+        `github.com/btcsuite/btcd/blockchain.GetTransactionWeight` —
+        already effectively free, **zero new dependencies** (confirmed
+        directly: importing it pulled in nothing new to `go.sum`,
+        since it only needs `btcutil`/`txscript`/`wire`, all already
+        used) — gives an exact weight/vsize for any real constructed
+        witness, not just these four sample shapes.
+      - **Fee-rate sourcing**: `rpcclient.Client.EstimateSmartFee` is
+        already available on the same `*rpcclient.Client`
+        `RPCQuerier` already wraps — zero new dependency, just a new
+        method. Real caveat worth naming: `estimatesmartfee` needs
+        real recent block/mempool history to return a useful estimate
+        (a freshly-reset regtest node won't have it) — this needs
+        testing against a node with real fee-paying transaction
+        history, not just confirmed to exist as an RPC call.
+      - **Dust-limit checking: deliberately NOT reusing
+        `github.com/btcsuite/btcd/mempool.IsDust`/`GetDustThreshold`,
+        checked concretely rather than assumed free.** Actually
+        attempted the import: it drags in `github.com/aead/siphash`,
+        `github.com/kkdai/bstream`, and `github.com/stretchr/testify`
+        (plus its own `objx` dependency) — all unrelated to dust
+        checking, pulled in because `mempool` also imports
+        `btcutil/gcs` (compact block filters) for unrelated reasons.
+        The exact same class of gotcha `hashicorp/vault/shamir` taught
+        in [[A003]]: a small, wanted piece of a package dragging in an
+        unrelated dependency tree. Also a **better fit to hand-roll
+        anyway** — `mempool.GetDustThreshold`'s own formula assumes a
+        generic "typical P2WKH spending input" (its own doc comment
+        says so explicitly), when this package already knows its
+        *exact* real spending cost per branch from the measurement
+        above — reusing a generic heuristic would actually be less
+        accurate than what's already achievable here for free.
+      - **Still genuinely open**: whether this belongs as a helper
+        *inside* `internal/escrow` (e.g. an `EstimateSettlementFee`/
+        `MinViablePayout` pair of functions, taking a feerate and
+        branch shape) or stays the caller's own responsibility, same
+        posture as the "no wallet infrastructure" scope exclusion this
+        action already carries. Leaning toward "inside the package" —
+        unlike key custody, computing an exact fee for a script this
+        package itself defines isn't a deployment concern, it's the
+        same kind of thing `WitnessScriptHash`/`FundingAddress`
+        already do — but not decided, since it changes this action's
+        own scope boundary and deserves a real decision, not an
+        implied one.
 - [ ] **`RPCConfig`'s own doc comment already self-flags this, worth
       surfacing as a real task rather than leaving as a comment**:
       "this type makes no attempt to be safe for a mainnet node's
@@ -706,3 +753,28 @@ Doesn't decide *what* `minConfirmations` value real callers should use
 (fixed vs. scaled to bond size) — that's still an open operational
 choice this change makes possible to express, not one it makes for
 every future caller.
+
+2026-09-30 — **Scoped the fee/dust-limit gap with real measurements**,
+not just the earlier identification. Key finding: this package can
+solve this *exactly* rather than estimate it, since every settlement's
+witness shape is one of a small, known set — measured real vsize per
+branch with a throwaway test (deleted after use, not committed):
+`UniversalScript` witness script 263 bytes (2-of-2 branch vsize 199,
+fallback vsize 181), `ReinforcedScript` 337 bytes (2-of-2 branch vsize
+218, fallback vsize 200). `blockchain.GetTransactionWeight` (zero new
+dependencies — verified directly, nothing new landed in `go.sum`) did
+the measuring. Fee-rate sourcing is already available for free too:
+`rpcclient.Client.EstimateSmartFee`, same client `RPCQuerier` already
+wraps — caveat, needs testing against a node with real fee history,
+not just confirmed to exist as an RPC call. Deliberately rejected
+reusing `btcd/mempool.IsDust`/`GetDustThreshold` after actually
+attempting the import: drags in `aead/siphash`/`kkdai/bstream`/
+`stretchr/testify` for unrelated reasons (the package also imports
+`btcutil/gcs` for compact block filters), the same class of gotcha
+`hashicorp/vault/shamir` taught in A003 — and a worse fit anyway, since
+its own formula assumes a generic P2WKH spend where this package
+already knows its *exact* real cost. Left genuinely open: whether the
+fee/dust helper belongs inside `internal/escrow` (leaning yes — this
+isn't a deployment/key-custody concern, it's the same kind of thing
+`WitnessScriptHash` already does) or stays the caller's job — a real
+decision to make before implementing, not decided here.

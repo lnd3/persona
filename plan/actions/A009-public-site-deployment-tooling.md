@@ -160,3 +160,23 @@ obtained on the first attempt, no wasted ACME attempts. Verified with a
 real `curl` against the live HTTPS endpoint, not just trusting the
 deploy script's own "Done" output: 200, clean TLS, build-info footer
 matching the exact deployed commit. Status moved to `DONE`.
+
+2026-09-30 — **Real gap found post-deploy, same day: no `http://` →
+`https://` redirect.** `curl -I http://solemn.network` returned a bare
+502 from nginx, not a redirect — `auto_https disable_redirects` (in
+the Caddyfile from the start, copied from cinder's/EphemNet's own
+pattern) only disables Caddy's *automatic* redirect listener, which
+cinder's own D007 Log calls "meaningless" there because that
+architecture's real traffic only ever arrives via nginx's `:443` SNI
+passthrough — not a safe assumption for a landing page real visitors
+might reach by typing a bare domain or following a `http://` link.
+**Same gap confirmed present, unfixed, in both cinder's and EphemNet's
+own Caddyfiles** — worth a cross-repo pointer (see P001's `Linked`
+section) rather than editing either repo directly. Fixed here with an
+explicit `http://{$PERSONA_DOMAIN} { redir https://{host}{uri}
+permanent }` block — safe alongside the ACME HTTP-01 responder per
+D007's own confirmation that Caddy's internal challenge handler stays
+active independent of site-block routes. Validated against the real
+`caddy:2` image (`caddy validate`) before deploying, then confirmed
+live: `curl -I http://solemn.network` now returns a clean `301` to
+`https://solemn.network/`, HTTPS unaffected.

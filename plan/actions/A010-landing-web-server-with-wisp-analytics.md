@@ -90,12 +90,21 @@ authoritative):
    `/opt/persona/live/deploy/.env` on the server over SSH, then the
    local plaintext copy shredded — never committed, never left on this
    dev machine either.
-7. **Deployed**: `deploy/deploy.sh bh2 /opt/persona live` — built
-   `persona-web`'s image on the server, started both services. Not yet
-   verified against wisp's own dashboard (that needs real visitor
-   traffic plus the next UTC day boundary) — see this entry's own Log
-   for what *was* verified immediately (container health, direct
-   `curl` against the live page).
+7. **Deployed and verified**: `deploy/deploy.sh bh2 /opt/persona live`
+   — built `persona-web`'s image on the server (first build pulled
+   `golang:1.24`/`distroless/static-debian12` fresh, ~3 minutes), both
+   containers started clean. Verified immediately: `https://
+   solemn.network` returns `200`, `http://` still redirects, `docker
+   logs persona-live-persona-web-1` shows a clean startup with no
+   config errors (a bad `WISP_TOKEN`/`WISP_ENDPOINT` would have failed
+   loud at `hook.Start`), several real page loads (including a `404`
+   on a nonexistent path, confirmed *not* counted) produced no errors.
+   wisp's own ingest log confirms persona's registration (`registry: 5
+   products`, restarted at the right time). **Not yet confirmed**: an
+   actual batch arriving at wisp (the hook only sends every 5 minutes
+   and only when something is pending) or appearing on wisp's own
+   dashboard, which needs the next UTC day boundary — that's wisp's
+   own already-documented timing, not a gap in this verification.
 
 ## Log
 
@@ -132,4 +141,8 @@ real `caddy:2` image; the Docker image builds and, run standalone,
 serves the page correctly. Registered `persona` at wisp (merged
 cleanly, confirmed via `registry`), wrote `WISP_ENDPOINT`/`WISP_TOKEN`
 into the server's `deploy/.env` over SSH, shredded the local plaintext
-token copy. Deployed with `deploy/deploy.sh`.
+token copy. Deployed with `deploy/deploy.sh` and verified live — see
+step 7 above for the exact checks. Status moved to `IN_PROGRESS` (not
+`DONE`): the integration is live and erroring nowhere, but a real
+batch actually reaching wisp's dashboard hasn't been confirmed yet —
+check back after the next UTC day boundary.

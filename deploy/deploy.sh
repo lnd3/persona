@@ -4,9 +4,12 @@
 # current committed HEAD (git archive — only tracked, committed files,
 # nothing stray from this machine's own working tree), rsync that
 # snapshot over SSH into the server's pre-deployment build folder, then
-# trigger the build+restart there. No container registry — the one
-# image here (`caddy:2`) is pulled directly, nothing to build at all
-# yet, same as EphemNet's own ephemnet-caddy service.
+# trigger the build+restart there. No container registry — images
+# build directly from source on the server itself. Since A010
+# (2026-10-01): persona-web is a real Go binary built on the server
+# from this synced source (see deploy/persona-web/Dockerfile);
+# persona-caddy is still the one pulled image (`caddy:2`), nothing to
+# build there.
 #
 # Copied and adapted directly from cinder's/EphemNet's own
 # deploy/deploy.sh (same server, `bh2`, same convention).
@@ -122,6 +125,7 @@ if [ ! -f deploy/.env ]; then
 	echo "ERROR: deploy/.env is missing on the server — see deploy/README.md's one-time setup (PERSONA_DOMAIN is required)." >&2
 	exit 1
 fi
+docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml build persona-web
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml up -d
 docker image prune -f
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml ps

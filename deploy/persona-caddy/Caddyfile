@@ -7,9 +7,15 @@
 # extensively-diagnosed production failure with TLS-ALPN-01 (see
 # cinder's D007 Log).
 #
-# One static-file hostname, one Caddy instance, no app container at
-# all — proportionate to one page, same reasoning EphemNet used for its
-# own two-page Caddyfile.
+# Since A010 (2026-10-01): reverse-proxies to persona-web
+# (cmd/persona-web), a real Go binary, instead of serving
+# site/index.html directly — persona-web is what reports page views to
+# wisp, which needs to run inside the code actually handling the
+# request, not this TLS sidecar. `header_up X-Real-IP` passes the real
+# client IP through; persona-web trusts it only when the request's own
+# RemoteAddr is inside persona-edge (see cmd/persona-web/main.go's own
+# trustedProxyClientIP) — the only other thing on that network is this
+# container, so nothing else can forge it.
 #
 # {$PERSONA_DOMAIN} is Caddy's own native env-var substitution — set
 # via deploy/.env's PERSONA_DOMAIN (docker-compose.yml passes it
@@ -40,8 +46,9 @@
 			disable_tlsalpn_challenge
 		}
 	}
-	root * /srv/site
-	file_server
+	reverse_proxy persona-web:8080 {
+		header_up X-Real-IP {http.request.remote.host}
+	}
 }
 
 # Explicit http://-\>https:// redirect for real visitor traffic — found

@@ -86,13 +86,18 @@ model as cinder/EphemNet — see cinder's own `deploy/README.md` for why.
    sync and start.
 
 **Port/subnet collision already checked live (2026-09-30)**: this
-repo's live defaults are `172.32.1.0/24` and `9470`/`9210` — see
+repo's live defaults are `172.21.1.0/24` and `9470`/`9210` — see
 `deploy/docker-compose.yml`'s own comment. An earlier draft of this
 tooling picked `172.31.1.0/24`/`9460`/`9200`, which turned out to
 already be in live use by a fourth product on this server,
 `offgridapp` (not previously known to this repo's own plan) — caught
 by actually running `docker ps`/`docker network ls`/`ss -tlnp` against
 `bh2` before deploying, not assumed clear from documentation alone.
+**Corrected again 2026-10-01**: the subnet picked at that check,
+`172.32.1.0/24`, turned out to be outside RFC 1918's private range
+entirely (172.16.0.0/12 only covers up to 172.31.255.255) — caught by
+the user, not this session. Moved to `172.21.1.0/24`, confirmed free
+at the same 2026-09-30 check and correctly private.
 
 ## Redeploying (`deploy/deploy.sh`, run from the dev machine)
 

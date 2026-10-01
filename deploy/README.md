@@ -3,12 +3,12 @@
 Copied and adapted from `cinder`'s own `deploy/` (D007/P008 — the
 original design, HTTP-01-not-TLS-ALPN-01 ACME, the shared nginx
 `stream{}` skeleton) and `EphemNet`'s own `deploy/` (D003 — the
-`<deploy-root>/<environment>` convention on top of cinder's pattern,
-and the single-static-page Caddy shape this repo's own deploy is
-closest to). See either repo's own `deploy/README.md` for the full
-architecture and the real incidents that shaped it; this is just the
-how-to for persona's own, much smaller slice of it — one static
-landing page (`site/index.html`), no app binary of its own yet.
+`<deploy-root>/<environment>` convention on top of cinder's pattern).
+See either repo's own `deploy/README.md` for the full architecture and
+the real incidents that shaped it; this is just the how-to for
+persona's own slice of it — one landing page (`site/index.html`), now
+served by a real Go binary (`persona-web`, since A010/2026-10-01) so it
+can report page views to wisp.
 
 ## Shape
 
@@ -19,15 +19,20 @@ Internet ──▶ nginx (host, shared with cinder/EphemNet) ──────�
                 ▼                                                        ▼
           persona-caddy                                            persona-caddy
           127.0.0.1:9470                                           127.0.0.1:9210
-                │
+                │ reverse_proxy, header_up X-Real-IP
                 ▼
-          site/index.html (static, read-only mount)
+          persona-web:8080 (persona-edge network, no host port)
+                │
+                ├──▶ site/index.html (static, read-only mount)
+                └──▶ wisp.mera.network/v1/ingest (page views, server-to-server)
 ```
 
-One product, one container (`persona-caddy`, `image: caddy:2` —
-nothing to build), no `internal-services` network membership (nothing
-here talks to cinder's or EphemNet's own containers, and nothing needs
-to).
+Two services since A010: `persona-web` (`cmd/persona-web`, a real Go
+binary — built on the server, see `deploy/persona-web/Dockerfile`) and
+`persona-caddy` (`image: caddy:2`, nothing to build), which still does
+all TLS termination and never talks to wisp itself. No
+`internal-services` network membership (nothing here talks to
+cinder's or EphemNet's own containers, and nothing needs to).
 
 ## One-time setup
 
@@ -109,10 +114,11 @@ Packages the current commit on `main` with `git archive` (only tracked,
 committed content), bakes the build-info footer into the staged copy of
 `site/index.html` (never the committed file — see `deploy/deploy.sh`'s
 own comment), `rsync --delete`s it to the server's build folder
-(excluding `deploy/.env`), then starts/restarts `persona-caddy`.
-Refuses to run if the dev machine's working tree has uncommitted
-changes outside `plan/`, if it's not actually on `main`, or if the
-server's `deploy/.env` is missing.
+(excluding `deploy/.env`), builds `persona-web` from source on the
+server, then starts/restarts both services. Refuses to run if the dev
+machine's working tree has uncommitted changes outside `plan/`, if
+it's not actually on `main`, or if the server's `deploy/.env` is
+missing.
 
 ```bash
 deploy/deploy.sh <user>@<server> /opt/persona live --branch=some-other-branch
@@ -135,6 +141,13 @@ deploy/ops.sh <user>@<server> /opt/persona live down
 - `curl -v https://solemn.network` — real cert, real page.
 - Confirm the build-info footer at the bottom of the page shows the
   commit you actually just deployed, not a stale one.
+- `deploy/ops.sh <user>@<server> /opt/persona live logs persona-web` —
+  confirm it's listening and not erroring on startup (a missing/wrong
+  `WISP_TOKEN` or malformed `WISP_ENDPOINT` fails loud at `hook.Start`,
+  not silently).
+- wisp's own dashboard shows the first closed day for `persona` at
+  02:00 UTC the next day, plus up to 10 minutes (see A010's own
+  integration notes, step 7).
 
 ## Adding a second environment (`dev`)
 

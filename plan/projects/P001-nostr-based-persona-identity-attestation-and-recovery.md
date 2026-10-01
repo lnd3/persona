@@ -369,6 +369,18 @@ in [[D001]].
       Encrypt cert obtained on the first attempt, verified with a real
       `curl` (200, clean TLS, correct build-info footer). A009 moved to
       DONE.
+- [x] File and implement [[A010]]: report persona's web traffic to
+      `wisp` — filed 2026-10-01, briefly deferred the same day (no
+      persona code saw a request; persona-caddy served
+      `site/index.html` directly), then reversed at the user's
+      explicit direction once asked directly whether that reasoning
+      still held. Built `cmd/persona-web`, a small Go server now
+      fronting the landing page (persona-caddy still terminates TLS
+      and reverse-proxies to it) that reports page views to wisp
+      through its in-product hook (`github.com/lnd3/wisp/hook`, zero
+      transitive dependencies — confirmed, not assumed). Registered
+      with wisp (merged cleanly into its shared `products.json`,
+      confirmed via `registry`), deployed to `bh2`.
 
 ## Log
 

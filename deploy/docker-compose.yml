@@ -1,11 +1,13 @@
 # Production compose stack for persona's own public landing page
 # (solemn.network) — copied and adapted directly from EphemNet's own
 # deploy/docker-compose.yml (same server, `bh2`, same convention —
-# itself copied from cinder's D007/P008), scoped down to what this
-# repo actually has today: one static-file page, no app binary of its
-# own yet (no `cmd/persona` daemon exists — internal/{identity,
-# attestation,trust,recovery,payment,dispute,escrow} are libraries with
-# their own tests, not a running service). Never invoked directly —
+# itself copied from cinder's D007/P008). Two services since
+# 2026-10-01 (A010): `persona-web` (a real Go binary, `cmd/persona-web`)
+# serves site/index.html and reports page views to wisp; `persona-caddy`
+# still terminates TLS and reverse-proxies to it, same role it always
+# had. Before A010, persona-caddy served the static file directly with
+# no persona code in the request path at all — see persona-web's own
+# package doc comment for why that changed. Never invoked directly —
 # always via deploy/ops.sh or deploy/deploy.sh, which pass
 # `-p <environment>` (see deploy/environments.sh) so "live" and "dev"
 # never collide on container/volume/network names, and never collide
@@ -43,12 +45,34 @@
 # 9210/9470 (live), 9310/9570 (dev).
 
 services:
-  # persona's own landing page (solemn.network) — a single static file
-  # tree, one Caddy instance, no app container needed (same shape as
-  # EphemNet's own ephemnet-caddy for its two landing pages, unlike
-  # cinder's own cinderapps, which needs a real Go binary for
-  # Host-based routing across several product pages — see cinder's
-  # D010). Add a second hostname/mount here the same way EphemNet did
+  # persona-web (A010, 2026-10-01): the real Go binary that now serves
+  # site/index.html and reports page views to wisp
+  # (github.com/lnd3/wisp/hook) — see cmd/persona-web/main.go's own
+  # package doc comment for why this exists at all. No host-published
+  # port: reachable only from persona-caddy, over the shared
+  # persona-edge network, by container DNS name. WISP_ENDPOINT/
+  # WISP_TOKEN come from deploy/.env; an empty WISP_ENDPOINT makes the
+  # hook a no-op (dev/local runs never need a real token).
+  persona-web:
+    build:
+      context: ..
+      dockerfile: deploy/persona-web/Dockerfile
+    environment:
+      - PERSONA_WEB_ADDR=:8080
+      - PERSONA_SITE_DIR=/srv/site
+      - PERSONA_EDGE_SUBNET=${PERSONA_EDGE_SUBNET:-172.21.1.0/24}
+      - WISP_ENDPOINT=${WISP_ENDPOINT:-}
+      - WISP_TOKEN=${WISP_TOKEN:-}
+    volumes:
+      - ../site:/srv/site:ro
+    networks:
+      - persona-edge
+    restart: unless-stopped
+
+  # persona's own landing page (solemn.network) — still the TLS-
+  # terminating sidecar (same shape as EphemNet's own ephemnet-caddy),
+  # now reverse-proxying to persona-web instead of serving files
+  # itself. Add a second hostname/mount here the same way EphemNet did
   # for its agent-download page, if/when persona.solemn.network needs
   # its own distinct content instead of reusing this same page.
   persona-caddy:
@@ -58,7 +82,6 @@ services:
       - PERSONA_EDGE_SUBNET=${PERSONA_EDGE_SUBNET:-172.21.1.0/24}
     volumes:
       - ./persona-caddy/Caddyfile:/etc/caddy/Caddyfile:ro
-      - ../site:/srv/site:ro
       - persona-caddy-data:/data
       - persona-caddy-config:/config
     ports:
@@ -69,6 +92,8 @@ services:
       - "127.0.0.1:${PERSONA_CADDY_HTTP_PORT:-9210}:80"
     networks:
       - persona-edge
+    depends_on:
+      - persona-web
     restart: unless-stopped
 
 networks:

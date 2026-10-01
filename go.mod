@@ -8,6 +8,7 @@ require (
 	github.com/btcsuite/btcd/btcutil v1.1.5
 	github.com/btcsuite/btcd/btcutil/psbt v1.2.0
 	github.com/btcsuite/btcd/chaincfg/chainhash v1.1.0
+	github.com/lnd3/wisp v0.0.0-20261001145431-bbb773f0d77d
 	github.com/nbd-wtf/go-nostr v0.52.3
 )
 

@@ -55,8 +55,9 @@ authoritative):
 4. **Client IP:** persona-caddy sends
    `header_up X-Real-IP {http.request.remote.host}`. The handler
    trusts that header only when `RemoteAddr` is inside
-   `PERSONA_EDGE_SUBNET`. (That subnet should move off
-   `172.32.1.0/24`: it's public address space, outside RFC 1918.)
+   `PERSONA_EDGE_SUBNET` — now `172.21.1.0/24`, fixed 2026-10-01 (the
+   user caught that the original `172.32.1.0/24` was outside RFC
+   1918's private range; see A009's own Log).
 5. **Config:** pass `WISP_ENDPOINT`/`WISP_TOKEN` from `deploy/.env`.
    The serving container needs outbound HTTPS to `wisp.mera.network`.
 6. **Register at wisp** (operator), from a wisp checkout:

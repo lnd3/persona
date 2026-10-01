@@ -180,3 +180,19 @@ active independent of site-block routes. Validated against the real
 `caddy:2` image (`caddy validate`) before deploying, then confirmed
 live: `curl -I http://solemn.network` now returns a clean `301` to
 `https://solemn.network/`, HTTPS unaffected.
+
+2026-10-01 — **Real bug in this action's own subnet pick, caught by
+the user, not this session.** `PERSONA_EDGE_SUBNET`'s live default,
+`172.32.1.0/24` (picked during the port/subnet collision check above),
+is not actually RFC 1918 private space — `172.16.0.0/12` covers only
+`172.16.0.0`-`172.31.255.255`; `172.32.x.x` is real, publicly-routable
+IPv4 address space. Not a direct traffic leak (still Docker
+bridge/NAT-isolated), but a real route-table collision risk: this
+host or a container could wrongly prefer the local bridge route over
+the real internet route for any genuine public host inside that
+block. Corrected to `172.21.1.0/24` (live) / `172.21.2.0/24` (dev) —
+confirmed free at the original 2026-09-30 check (`172.21.0.0/16`
+through `172.27.0.0/16` were entirely unused on `bh2`) and correctly
+inside the private range this time. Updated
+`docker-compose.yml`/`.env.example`/`README.md`; redeploying to
+actually apply it on `bh2` is this entry's own next step.

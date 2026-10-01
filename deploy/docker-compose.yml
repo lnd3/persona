@@ -18,8 +18,22 @@
 # in-use ranges at that check: cinder 172.28.0.0/24 (live, six /24s)
 # and 172.29.0.0/24 (dev); EphemNet 172.30.1.0/24 (live); a fourth
 # product on this same server, `offgridapp` (not previously known to
-# this repo's own plan), 172.31.1.0/24 (live). persona takes the next
-# free block, 172.32.1.0/24 (live) / 172.32.2.0/24 (dev).
+# this repo's own plan), 172.31.1.0/24 (live).
+#
+# CORRECTED 2026-10-01 — real bug, not just a style nit: the original
+# pick here, 172.32.1.0/24, is NOT RFC 1918 private space.
+# 172.16.0.0/12 (RFC 1918's middle private block) covers exactly
+# 172.16.0.0-172.31.255.255; 172.32.x.x is real, publicly-routable
+# IPv4 space owned by an actual internet organization. A Docker bridge
+# subnet outside RFC 1918 doesn't leak traffic directly (still
+# NAT/bridge-isolated), but it creates a real route-table collision
+# risk: if this host or container ever needed to reach a genuine
+# public host inside 172.32.1.0/24, the kernel would wrongly prefer
+# the local bridge route over the real internet route. persona now
+# takes 172.21.1.0/24 (live) / 172.21.2.0/24 (dev) — confirmed free at
+# the same 2026-09-30 check (172.21.0.0/16 through 172.27.0.0/16 were
+# entirely unused on `bh2`; only 172.17-172.20 and 172.28-172.31 were
+# claimed), and correctly inside 172.16.0.0/12.
 #
 # Ports checked the same way: cinder's live stack occupies
 # 9180-9184/9443-9447 (dev 9280-9284/9543-9547); EphemNet's live stack
@@ -41,7 +55,7 @@ services:
     image: caddy:2
     environment:
       - PERSONA_DOMAIN=${PERSONA_DOMAIN:?set PERSONA_DOMAIN in deploy/.env}
-      - PERSONA_EDGE_SUBNET=${PERSONA_EDGE_SUBNET:-172.32.1.0/24}
+      - PERSONA_EDGE_SUBNET=${PERSONA_EDGE_SUBNET:-172.21.1.0/24}
     volumes:
       - ./persona-caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - ../site:/srv/site:ro
@@ -65,7 +79,7 @@ networks:
   persona-edge:
     ipam:
       config:
-        - subnet: ${PERSONA_EDGE_SUBNET:-172.32.1.0/24}
+        - subnet: ${PERSONA_EDGE_SUBNET:-172.21.1.0/24}
 
 volumes:
   persona-caddy-data:

@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-09-30 22:30:42 UTC*
+*Last updated: 2026-10-01 16:35:03 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -43,3 +43,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A007](actions/A007-bitcoin-escrow-security-review.md) | Independent security review of the Bitcoin escrow scripts | PLANNING | D001 | TBD |
 | [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration | PLANNING | D001 | TBD |
 | [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |
+| [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics (when persona has a web server) | DEFERRED | D001 | TBD |

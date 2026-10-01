@@ -59,13 +59,17 @@ authoritative):
    `172.32.1.0/24`: it's public address space, outside RFC 1918.)
 5. **Config:** pass `WISP_ENDPOINT`/`WISP_TOKEN` from `deploy/.env`.
    The serving container needs outbound HTTPS to `wisp.mera.network`.
-6. **Register at wisp** (operator, on `bh2`):
+6. **Register at wisp** (operator), from a wisp checkout:
    ```bash
-   TOK=$(openssl rand -hex 32)          # into persona's deploy/.env as WISP_TOKEN
-   echo "$TOK" | docker run --rm -i wisp-live-wisp hash-token
-   # add {"key": "persona", "token_sha256": ["<hash>"]} to /opt/wisp/live/deploy/products.json
-   cd ~/repos/wisp && deploy/ops.sh bh2 /opt/wisp live restart wisp
+   TOK=$(openssl rand -hex 32)          # into persona's deploy/.env as WISP_TOKEN (never commit it)
+   echo "$TOK" | deploy/ops.sh bh2 /opt/wisp live register persona
+   deploy/ops.sh bh2 /opt/wisp live registry   # confirm persona is listed
    ```
+   `register` hashes the token locally (only the SHA-256 is sent),
+   **merges** it into wisp's shared `products.json`, backs up the old
+   file and restarts wisp. **Never hand-edit or rewrite
+   `products.json`**: every product registers there, and on
+   2026-10-01 a hand-written replacement wiped another product's entry.
 7. **Verify:** the first closed day appears on wisp's dashboard at
    02:00 UTC the next day, plus up to 10 minutes.
 
@@ -76,3 +80,5 @@ authoritative):
 user paused it before any code was written, and asked why persona
 would need another web service. Rescoped the same day to DEFERRED,
 with integration notes only. No persona code or deployment changed.
+
+2026-10-01 (later) — Step 6 updated from the wisp repo: register through wisp's new merge-only `deploy/ops.sh … register`, never by editing `products.json` by hand.

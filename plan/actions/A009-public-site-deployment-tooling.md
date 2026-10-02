@@ -227,7 +227,12 @@ closing permanently rather than working around by hand each time.
 
 2026-10-02 (later, same day) — **Superseded building on `bh2`
 entirely, copying `wisp`'s own follow-up fix** ("Wisp build docker
-snapshot now instead of building on bh2. Copy it."). `wisp` resolved
+snapshot now instead of building on bh2. Copy it."). This turned out
+to also be tracked cross-repo as [[A011]] (filed from the `wisp` repo
+into this one around the same time, "share with offgrid, cinder,
+ephemnet, persona") — reconciled there afterward rather than
+duplicated; A011 points back here for the actual implementation Log.
+`wisp` resolved
 its own disk emergency (above) by never building on `bh2` again —
 cross-compiling `persona-web`'s image on the dev machine and shipping
 it with `docker save | gzip | ssh | gunzip | docker load`, matching

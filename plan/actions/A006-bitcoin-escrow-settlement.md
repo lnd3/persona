@@ -403,7 +403,8 @@ longer applies; that history is kept in the Log, not here.**
         `EstimateSmartFee` wrapping is **not** included here — still
         needs testing against a node with real fee history, named as
         future work, not silently assumed done.
-- [ ] **`RPCConfig`/TLS gap, re-scoped with a real finding (2026-09-30):
+- [x] **`RPCConfig`/TLS gap — implemented and verified live 2026-10-02.**
+      Was re-scoped with a real finding (2026-09-30):
       this is stronger than a hardening nicety — as shaped today, TLS
       effectively cannot be used at all against a typical self-hosted
       node.** Read `rpcclient`'s own dial code
@@ -449,9 +450,30 @@ longer applies; that history is kept in the Log, not here.**
         complexity to fully solve it" move this design makes elsewhere.
       - Still adjacent to, not clearly inside, this action's own "no
         wallet/key-management infrastructure" exclusion (this is the
-        *chain-query* connection, not fund custody) — worth an explicit
-        decision on which action owns implementing it, same as the
-        fee/dust-limit item above.
+        *chain-query* connection, not fund custody) — resolved the same
+        way as the fee/dust-limit item: implemented here, same
+        reasoning (this isn't key custody, it's configuring the query
+        connection this package's own `ChainQuerier` implementation
+        already owns).
+      - **Implemented**: `RPCConfig` gained `Certificates []byte` and
+        `CookiePath string`, both passed straight through to
+        `rpcclient.ConnConfig`. **Verified live, not just by reading
+        the code**: started a real `btcd` regtest node with TLS
+        actually enabled (not `--notls`, unlike every other test in
+        this package) and confirmed both halves of the original
+        finding for real — `NewRPCQuerier`/`TxOut` with `Certificates`
+        empty fails with exactly the predicted error
+        (`x509: certificate signed by unknown authority`), and
+        succeeds with the node's own generated cert supplied. `btcd`
+        doesn't support `-rpccookiefile`-style cookie auth itself (checked:
+        no `cookie` references in its own `config.go`), so `CookiePath`
+        couldn't be live-verified against this project's own test node —
+        it's real functionality for a `bitcoind` backend, which this
+        package's `ChainQuerier` interface is written generally enough
+        to support, just not exercisable here. Confirmed NOT a logging
+        risk either way: still nothing in this package prints/logs the
+        config. SOCKS5 proxy support remains unimplemented, as scoped
+        (lower priority, not blocking).
 - [ ] **Confirmed NOT a gap, checked rather than assumed**: chain
       selection (mainnet vs. testnet vs. regtest) is already properly
       parameterized — `FundingAddress` (`timelock.go`) takes
@@ -881,3 +903,27 @@ here rather than silently skipped. **Not done**: wrapping
 `EstimateSmartFee` into a real feerate source — still needs testing
 against a node with real fee-paying history, named as remaining
 future work, not assumed covered by this pass.
+
+2026-10-02 — **Implemented and live-verified the RPCConfig/TLS fix**,
+closing the third and final scoped mainnet-gate gap. `RPCConfig`
+gained `Certificates []byte` and `CookiePath string`, both passed
+straight through to `rpcclient.ConnConfig` in `NewRPCQuerier`. Proved
+the fix for real rather than trusting the earlier code-reading alone:
+built a fresh `btcd` regtest node with TLS actually enabled (every
+other test in this package uses `--notls`), confirmed `TxOut` fails
+with exactly the predicted `x509: certificate signed by unknown
+authority` error when `Certificates` is empty, then confirmed a real
+TLS-verified RPC call succeeds once the node's own generated cert is
+supplied. Checked `btcd`'s own source and confirmed it has no
+`-rpccookiefile`-equivalent support, so `CookiePath` couldn't be
+live-verified against this project's own node — left in as real,
+correctly-generalized `ChainQuerier` config for a `bitcoind` backend,
+not claimed as proven against something it can't be proven against.
+Full repo build/vet/test clean; the throwaway TLS-test node, its
+generated cert, and the verification test file were all cleaned up
+after use, not committed. **All three of A006's scoped mainnet-gate
+gaps (confirmation depth, fee/dust-limit, RPCConfig/TLS) are now
+implemented.** A007's independent review remains the one actual
+mainnet gate left — these three were real, additional findings this
+session surfaced by reading the code rather than assuming the task
+list was complete, not a substitute for that review.

@@ -37,13 +37,44 @@ type RPCQuerier struct {
 }
 
 // RPCConfig holds what's needed to reach a btcd/bitcoind RPC endpoint.
-// Regtest/testnet only, per A006's own mainnet gate — this type makes
-// no attempt to be safe for a mainnet node's credentials.
+//
+// Hardened 2026-10-02, closing the real gap A006's own mainnet-gate
+// scoping found (2026-09-30) by reading rpcclient's actual dial code
+// rather than trusting its doc comments: with Certificates left empty
+// (this type's only option before this change), enabling TLS
+// (DisableTLS: false) falls back to the system CA trust store, which
+// a self-hosted btcd/bitcoind node's default self-signed cert never
+// satisfies — a real TLS connection attempt against a normal node
+// would simply fail. This type could, in effect, only ever connect
+// with DisableTLS: true, regardless of intent.
+//
+//   - Certificates (below) fixes that directly — supply the node's own
+//     cert (self-signed or real CA-issued) and TLS verification works.
+//   - CookiePath (below) is bitcoind's/btcd's own standard production
+//     auth mechanism — a node-managed, rotated credential file — used
+//     instead of User/Pass when set (same precedence rpcclient.ConnConfig
+//     itself documents). Avoids embedding a real credential in
+//     application config at all, which User/Pass alone cannot.
+//
+// One accepted residual, stated rather than solved: User/Pass are
+// plain Go strings, which can't be securely zeroed after use the way
+// a []byte could. Real but minor, and not worth a bigger API change
+// for this project's threat model — noted in A006's own Log rather
+// than silently left unmentioned.
 type RPCConfig struct {
 	Host       string // "host:port", no scheme
 	User       string
 	Pass       string
+	// CookiePath, if non-empty, is used instead of User/Pass — see
+	// this type's own doc comment above.
+	CookiePath string
 	DisableTLS bool
+	// Certificates is a PEM-encoded certificate chain for verifying the
+	// node's TLS certificate. Has no effect when DisableTLS is true.
+	// Required in practice for DisableTLS: false to work against a
+	// self-hosted node's own default self-signed cert — see this
+	// type's own doc comment above for why.
+	Certificates []byte
 }
 
 // NewRPCQuerier connects to a btcd/bitcoind RPC endpoint over plain
@@ -53,8 +84,10 @@ func NewRPCQuerier(cfg RPCConfig) (*RPCQuerier, error) {
 		Host:         cfg.Host,
 		User:         cfg.User,
 		Pass:         cfg.Pass,
+		CookiePath:   cfg.CookiePath,
 		HTTPPostMode: true,
 		DisableTLS:   cfg.DisableTLS,
+		Certificates: cfg.Certificates,
 	}, nil)
 	if err != nil {
 		return nil, fmt.Errorf("escrow: connecting to RPC endpoint: %w", err)

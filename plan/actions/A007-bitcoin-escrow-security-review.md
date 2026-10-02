@@ -299,3 +299,14 @@ author never thought to test for in the first place, and "I tested it
 myself" isn't a credible enough bar for fund-custody code regardless
 of how true it is. Still not this action's call to make: who actually
 receives it, and when.
+
+2026-10-02 — The operator decided: posting a public LinkedIn version
+of the outreach message, adapted for a cold audience rather than a
+known private contact, to actually find a reviewer. Logged
+cross-repo on `superplan`'s own `M002` as well. Worth tracking here
+since it changes the expected response channel this action's own
+drafted message assumed: candidates may now reach out via LinkedIn
+comments or DMs rather than the private message the original draft
+was written for — the substance of the outreach message doesn't need
+to change, but whoever responds to a reply should know it may arrive
+publicly/semi-publicly, not just in a private inbox.

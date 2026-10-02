@@ -332,8 +332,8 @@ longer applies; that history is kept in the Log, not here.**
       `minConfirmations` value to actually pass (fixed N vs. scaled to
       bond size) — this action makes that choice possible and explicit,
       it doesn't make it for every future caller.
-- [ ] **Fee/dust-limit gap, re-scoped with real numbers (2026-09-30),
-      not just identified.** `NewSettlementPacket` (`settle.go`) takes
+- [x] **Fee/dust-limit gap — implemented 2026-10-02.** Was re-scoped
+      with real numbers (2026-09-30), not just identified. `NewSettlementPacket` (`settle.go`) takes
       a fully caller-supplied `payouts []*wire.TxOut` with zero fee
       calculation of its own; the only fee value anywhere in the whole
       codebase is a hardcoded `const fee = int64(1000)` inside the
@@ -383,18 +383,26 @@ longer applies; that history is kept in the Log, not here.**
         *exact* real spending cost per branch from the measurement
         above — reusing a generic heuristic would actually be less
         accurate than what's already achievable here for free.
-      - **Still genuinely open**: whether this belongs as a helper
-        *inside* `internal/escrow` (e.g. an `EstimateSettlementFee`/
-        `MinViablePayout` pair of functions, taking a feerate and
-        branch shape) or stays the caller's own responsibility, same
-        posture as the "no wallet infrastructure" scope exclusion this
-        action already carries. Leaning toward "inside the package" —
-        unlike key custody, computing an exact fee for a script this
-        package itself defines isn't a deployment concern, it's the
-        same kind of thing `WitnessScriptHash`/`FundingAddress`
-        already do — but not decided, since it changes this action's
-        own scope boundary and deserves a real decision, not an
-        implied one.
+      - **Resolved**: built inside `internal/escrow` (`fee.go`), not
+        left to the caller — same reasoning the scoping pass already
+        leaned toward (computing an exact fee for a script this
+        package itself defines isn't a deployment/key-custody concern,
+        it's the same kind of thing `WitnessScriptHash`/
+        `FundingAddress` already do). `Branch` (8 named values matching
+        `FinalizeUniversal`'s/`FinalizeReinforced`'s own branch order
+        exactly, reusing their real `selTrue`/`selFalse` values rather
+        than a second copy of that knowledge) + `EstimateSettlementVSize`/
+        `EstimateSettlementFee` (worst-case witness, real
+        `blockchain.GetTransactionWeight`, zero new dependencies) +
+        `IsDustOutput`/`dustThreshold` (hand-rolled, matching btcd's own
+        well-documented formula, generalized to take a feerate
+        parameter instead of hardcoding the 1 sat/vByte default).
+        `NewSettlementPacket` itself now rejects any payout below the
+        standard dust threshold outright — closing the gap for real,
+        not just offering an opt-in helper nobody's forced to call.
+        `EstimateSmartFee` wrapping is **not** included here — still
+        needs testing against a node with real fee history, named as
+        future work, not silently assumed done.
 - [ ] **`RPCConfig`/TLS gap, re-scoped with a real finding (2026-09-30):
       this is stronger than a hardening nicety — as shaped today, TLS
       effectively cannot be used at all against a typical self-hosted
@@ -836,3 +844,40 @@ SOCKS5 proxy support as available but lower-priority. Same open
 question as the fee/dust-limit item: whether this belongs inside
 `internal/escrow`'s own scope or is a separate deployment concern —
 not decided, scoping only.
+
+2026-10-02 — **Implemented the fee/dust-limit fix**, the second of the
+three scoped mainnet-gate gaps (after confirmation depth). New
+`internal/escrow/fee.go`: `Branch` (8 named values mirroring
+`FinalizeUniversal`'s/`FinalizeReinforced`'s own branch order and real
+`selTrue`/`selFalse` selector values — deliberately the single source
+of truth, not a second copy), `EstimateSettlementVSize`/
+`EstimateSettlementFee` (worst-case 72-byte placeholder signatures,
+measured via `blockchain.GetTransactionWeight`, zero new
+dependencies), `IsDustOutput`/`dustThreshold` (hand-rolled, matching
+btcd's own `mempool.GetDustThreshold` formula without importing the
+package that drags in `aead/siphash`/`kkdai/bstream`/`stretchr/
+testify`). `NewSettlementPacket` now rejects any payout below the
+standard dust threshold outright, closing the actual gap rather than
+just adding an opt-in helper. Caught and fixed one real bug in the
+process: the original scoping pass's throwaway measurement used
+`{0x01}` as a placeholder for every selector including `selFalse`
+ones (which are actually empty, zero bytes) — one byte too generous
+per `selFalse`, enough to flip `ReinforcedScript`'s fallback branch
+from the originally-quoted vsize 200 to the now-correctly-measured
+199. Fixed in the test, not the implementation, since the
+implementation always used the real selector values; the earlier
+scoping note's number was the one that was slightly wrong. 9 new
+tests (4 pinned against the real measured vsize values, including
+the corrected one; 1 broad all-branches sanity sweep; dust-threshold
+boundary cases including the unconditional OP_RETURN-is-always-dust
+rule; feerate scaling; `NewSettlementPacket`'s own new rejection
+behavior). Full repo build/vet/test clean — existing tests
+unaffected, since every payout amount they use is many orders of
+magnitude above the dust threshold. Did not re-run the live regtest
+suite for this change specifically (no node was running, and the new
+check is provably a no-op for the live tests' own amounts — tens of
+millions of sats against a threshold in the low hundreds); noted
+here rather than silently skipped. **Not done**: wrapping
+`EstimateSmartFee` into a real feerate source — still needs testing
+against a node with real fee-paying history, named as remaining
+future work, not assumed covered by this pass.

@@ -125,9 +125,33 @@ if [ ! -f deploy/.env ]; then
 	echo "ERROR: deploy/.env is missing on the server — see deploy/README.md's one-time setup (PERSONA_DOMAIN is required)." >&2
 	exit 1
 fi
+# Pruned right after the build, not just once at the end — copied from
+# cinder's own deploy.sh (found live there: \`bh2\` is an 8.7G-disk
+# server shared by every product on it, and Docker's build cache is
+# never pruned on its own; it grew large enough to be the dominant
+# share of a real "disk 80% full" incident). persona has only one
+# buildable service today, but this keeps the same discipline cinder's
+# own comment explains in full — see that script for the exact
+# "pruned after EVERY build, not just once" reasoning if this repo
+# ever has more than one.
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml build persona-web
-docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml up -d
 docker image prune -f
+docker builder prune -a -f
+docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml up -d
+# persona-caddy is a plain "image: caddy:2" with its Caddyfile as a
+# read-only bind mount — Compose's own change detection (image, env,
+# the volume's *path* string) never changes just because that mounted
+# file's *content* did, so "up -d" above silently leaves an
+# already-running Caddy container on its old, already-parsed config.
+# Caddy doesn't hot-reload the file either (no --watch flag here).
+# Explicit restart, every deploy, whether or not this one actually
+# touched the Caddyfile — found live in this repo's own history (the
+# http->https redirect fix needed a manual \`ops.sh ... restart\` after
+# this exact symptom), then confirmed cinder had already hit and fixed
+# the identical thing in its own deploy.sh.
+docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml restart persona-caddy
+docker image prune -f
+docker builder prune -a -f
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml ps
 EOF
 

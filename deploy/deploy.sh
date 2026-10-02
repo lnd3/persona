@@ -4,15 +4,15 @@
 # current committed HEAD (git archive — only tracked, committed files,
 # nothing stray from this machine's own working tree), rsync that
 # snapshot over SSH into the server's pre-deployment build folder, then
-# trigger the build+restart there. No container registry — images
-# build directly from source on the server itself. Since A010
-# (2026-10-01): persona-web is a real Go binary built on the server
-# from this synced source (see deploy/persona-web/Dockerfile);
-# persona-caddy is still the one pulled image (`caddy:2`), nothing to
-# build there.
+# trigger the restart there. No container registry: the persona-web
+# image is built HERE and shipped with docker save | ssh | docker load,
+# so the server never compiles anything. persona-caddy's `caddy:2` is
+# pulled directly.
 #
-# Copied and adapted directly from cinder's/EphemNet's own
-# deploy/deploy.sh (same server, `bh2`, same convention).
+# Copied and adapted from wisp's own deploy/deploy.sh (same server,
+# `bh2`, same convention, same fix for the same incident — building on
+# `bh2` filled its shared 8.7G disk during wisp's own deploy on
+# 2026-10-02; see deploy/persona-web/Dockerfile's own header).
 #
 # NOT part of this script, deliberately: nginx install/config, ufw/
 # ufw-docker setup, deploy/.env's contents on the server — those are
@@ -96,27 +96,52 @@ BUILD_TIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 echo "==> Packaging $GIT_REV ($BRANCH)..."
 git archive "$BRANCH" | tar -x -C "$STAGING"
 
-# site/index.html is a plain static file — persona-caddy mounts it
-# read-only straight from the synced tree below, no build step of its
-# own at all — so the build-number/build-time footer can only be baked
-# in here, in the staged copy, never the committed file itself (which
-# keeps the literal ${PERSONA_BUILD_INFO} placeholder forever —
-# restricted envsubst, same convention EphemNet's own deploy.sh already
-# uses, so a real "$" anywhere else in the page is never at risk).
+# site/index.html is a plain static file — persona-web reads it
+# straight from the synced tree below, no build step of its own at all
+# — so the build-number/build-time footer can only be baked in here,
+# in the staged copy, never the committed file itself (which keeps the
+# literal ${PERSONA_BUILD_INFO} placeholder forever — restricted
+# envsubst, same convention EphemNet's own deploy.sh already uses, so
+# a real "$" anywhere else in the page is never at risk).
 export PERSONA_BUILD_INFO="build ${GIT_REV} · ${BUILD_TIME}"
 BUILD_INFO_VARS='${PERSONA_BUILD_INFO}'
 envsubst "$BUILD_INFO_VARS" <"$STAGING/site/index.html" >"$STAGING/site/index.html.tmp" && mv "$STAGING/site/index.html.tmp" "$STAGING/site/index.html"
 
+# Build the persona-web image HERE, from the packaged snapshot, and
+# ship the image itself: the server only loads and runs it, with no
+# compiling, toolchain pulls or build cache next to every other
+# product. Building on bh2 (~hundreds of MB of temporary space for the
+# golang:1.24 toolchain alone) is exactly what filled its shared disk
+# during wisp's own deploy on 2026-10-02 — copied from wisp's own fix,
+# not invented here.
+case "$(ssh "$DEPLOY_SSH_TARGET" uname -m)" in
+x86_64 | amd64) PLATFORM=linux/amd64 ;;
+aarch64 | arm64) PLATFORM=linux/arm64 ;;
+*)
+	echo "ERROR: unsupported server architecture" >&2
+	exit 1
+	;;
+esac
+docker info >/dev/null 2>&1 || {
+	echo "ERROR: no local Docker daemon — the image is built on this machine, not the server." >&2
+	exit 1
+}
+IMAGE="persona-web:$GIT_REV"
+echo "==> Building $IMAGE for $PLATFORM (locally)..."
+docker build -q --platform "$PLATFORM" -f "$STAGING/deploy/persona-web/Dockerfile" -t "$IMAGE" "$STAGING" >/dev/null
+echo "==> Shipping $IMAGE ($(docker image ls "$IMAGE" --format '{{.Size}}'))..."
+docker save "$IMAGE" | gzip -1 | ssh "$DEPLOY_SSH_TARGET" 'gunzip | docker load -q' >/dev/null
+
 echo "==> Syncing to ${DEPLOY_SSH_TARGET}:${DEPLOY_REMOTE_PATH} ..."
 # --delete keeps the remote folder an exact mirror of this commit — but
-# deploy/.env lives only on the server (real domain, never committed)
-# and must survive every sync: excluded explicitly so --delete never
-# touches it.
+# deploy/.env lives only on the server (real domain/token, never
+# committed) and must survive every sync: excluded explicitly so
+# --delete never touches it.
 rsync -az --delete \
 	--exclude 'deploy/.env' \
 	"$STAGING"/ "${DEPLOY_SSH_TARGET}:${DEPLOY_REMOTE_PATH}/"
 
-echo "==> Starting on the server..."
+echo "==> Starting on the server (load, tag, up)..."
 # shellcheck disable=SC2029  # DEPLOY_REMOTE_PATH is ours to expand locally, not the remote's
 ssh "$DEPLOY_SSH_TARGET" bash -s <<EOF
 set -euo pipefail
@@ -125,18 +150,18 @@ if [ ! -f deploy/.env ]; then
 	echo "ERROR: deploy/.env is missing on the server — see deploy/README.md's one-time setup (PERSONA_DOMAIN is required)." >&2
 	exit 1
 fi
-# Pruned right after the build, not just once at the end — copied from
-# cinder's own deploy.sh (found live there: \`bh2\` is an 8.7G-disk
-# server shared by every product on it, and Docker's build cache is
-# never pruned on its own; it grew large enough to be the dominant
-# share of a real "disk 80% full" incident). persona has only one
-# buildable service today, but this keeps the same discipline cinder's
-# own comment explains in full — see that script for the exact
-# "pruned after EVERY build, not just once" reasoning if this repo
-# ever has more than one.
-docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml build persona-web
-docker image prune -f
-docker builder prune -a -f
+# Refuse to start on a nearly full disk: bh2 is shared by every product.
+avail_mb=\$(df --output=avail -BM . | tail -1 | tr -dc 0-9)
+if [ "\$avail_mb" -lt 300 ]; then
+	echo "ERROR: only \${avail_mb} MB free on the server — not starting. Free space first (bh2 is shared by every product)." >&2
+	exit 1
+fi
+# Prune dangling images however this ends. Never touches running
+# containers, volumes or tagged images. (Nothing is built here, so
+# there is no build cache to leave behind.)
+trap 'docker image prune -f >/dev/null 2>&1' EXIT
+docker image inspect "$IMAGE" >/dev/null # loaded, or stop here
+docker tag "$IMAGE" persona-web:current
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml up -d
 # persona-caddy is a plain "image: caddy:2" with its Caddyfile as a
 # read-only bind mount — Compose's own change detection (image, env,
@@ -150,8 +175,10 @@ docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml up -d
 # this exact symptom), then confirmed cinder had already hit and fixed
 # the identical thing in its own deploy.sh.
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml restart persona-caddy
-docker image prune -f
-docker builder prune -a -f
+# Keep the two most recent previous deploys for rollback
+# (docker tag persona-web:<commit> persona-web:current && up -d);
+# remove older ones.
+docker image ls persona-web --format '{{.Tag}}' | grep -vx -e current -e "$GIT_REV" | tail -n +3 | sed 's/^/persona-web:/' | xargs -r docker image rm >/dev/null 2>&1 || true
 docker compose -p $COMPOSE_PROJECT -f deploy/docker-compose.yml ps
 EOF
 

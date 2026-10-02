@@ -28,11 +28,22 @@ Internet ──▶ nginx (host, shared with cinder/EphemNet) ──────�
 ```
 
 Two services since A010: `persona-web` (`cmd/persona-web`, a real Go
-binary — built on the server, see `deploy/persona-web/Dockerfile`) and
-`persona-caddy` (`image: caddy:2`, nothing to build), which still does
-all TLS termination and never talks to wisp itself. No
-`internal-services` network membership (nothing here talks to
+binary) and `persona-caddy` (`image: caddy:2`, nothing to build),
+which still does all TLS termination and never talks to wisp itself.
+No `internal-services` network membership (nothing here talks to
 cinder's or EphemNet's own containers, and nothing needs to).
+
+**`persona-web` is built on the dev machine and shipped as an image
+(`docker save | ssh | docker load`), never built on `bh2`** — changed
+2026-10-02, copied from `wisp`'s own identical fix: `bh2` is an 8.7G
+disk shared by every product on it, and building there (the
+`golang:1.24` toolchain pull plus compile, even for a small binary)
+filled it during wisp's own deploy that day. `deploy/deploy.sh` needs
+a local Docker daemon on the dev machine now — it cross-compiles for
+the server's actual architecture (detected over SSH) using Docker's
+own `--platform`/`$BUILDPLATFORM` support, so this works the same way
+from an amd64 or arm64 dev machine either way, no QEMU emulation
+needed (Go cross-compiles natively).
 
 ## One-time setup
 
@@ -113,12 +124,15 @@ deploy/deploy.sh <user>@<server> /opt/persona live
 Packages the current commit on `main` with `git archive` (only tracked,
 committed content), bakes the build-info footer into the staged copy of
 `site/index.html` (never the committed file — see `deploy/deploy.sh`'s
-own comment), `rsync --delete`s it to the server's build folder
-(excluding `deploy/.env`), builds `persona-web` from source on the
-server, then starts/restarts both services. Refuses to run if the dev
-machine's working tree has uncommitted changes outside `plan/`, if
-it's not actually on `main`, or if the server's `deploy/.env` is
-missing.
+own comment), builds the `persona-web` image **locally** (cross-
+compiled for the server's architecture), ships it with `docker save |
+ssh | docker load`, `rsync --delete`s everything else to the server's
+build folder (excluding `deploy/.env`), then starts/restarts both
+services — refusing to start at all if the server has less than 300MB
+free (`bh2` is shared by every product on it). Refuses to run if the
+dev machine's working tree has uncommitted changes outside `plan/`, if
+it's not actually on `main`, if there's no local Docker daemon, or if
+the server's `deploy/.env` is missing.
 
 ```bash
 deploy/deploy.sh <user>@<server> /opt/persona live --branch=some-other-branch

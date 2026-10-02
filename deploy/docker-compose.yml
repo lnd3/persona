@@ -53,10 +53,15 @@ services:
   # persona-edge network, by container DNS name. WISP_ENDPOINT/
   # WISP_TOKEN come from deploy/.env; an empty WISP_ENDPOINT makes the
   # hook a no-op (dev/local runs never need a real token).
+  #
+  # Built on the dev machine and shipped by deploy.sh (docker save |
+  # ssh | docker load) since 2026-10-02 — never built here. Copied
+  # from wisp's own identical fix: building on `bh2` (shared by every
+  # product on an 8.7G disk) filled it during wisp's own deploy.
+  # deploy.sh tags each deploy persona-web:<commit> and points
+  # persona-web:current at it, keeping the previous image for rollback.
   persona-web:
-    build:
-      context: ..
-      dockerfile: deploy/persona-web/Dockerfile
+    image: persona-web:current
     environment:
       - PERSONA_WEB_ADDR=:8080
       - PERSONA_SITE_DIR=/srv/site

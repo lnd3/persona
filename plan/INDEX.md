@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-02 02:44:42 UTC*
+*Last updated: 2026-10-02 03:03:05 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -44,3 +44,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration | PLANNING | D001 | TBD |
 | [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |
 | [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics | IN_PROGRESS | D001 | TBD |
+| [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | PLANNING | D001 | TBD |

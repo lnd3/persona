@@ -8,11 +8,11 @@ for lost or stolen keys (SSKR-based, authorized via the same
 attestation primitive that builds reputation).
 
 Built on the same architectural philosophy as
-[cinder](https://github.com/lnd3/cinder) — capability-based access, no
+[cinder](https://cinderapps.org) — capability-based access, no
 accounts, macaroon-authenticated ownership, L402/Lightning payment —
 without any runtime dependency on cinder's own code. Pairs naturally
-with [EphemNet](https://github.com/lnd3/EphemNet), which makes
-self-hosting a persona relay behind a home NAT concretely possible.
+with [EphemNet](https://eph.network), which makes self-hosting a
+persona relay behind a home NAT concretely possible.
 
 See `plan/theses/T001-*.md` for the full reasoning and
 `plan/designs/D001-*.md` for the implementation-direction spec.

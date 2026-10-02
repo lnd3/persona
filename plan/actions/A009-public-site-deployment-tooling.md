@@ -252,4 +252,11 @@ service. Verified before touching the server: local cross-build
 (`docker build --platform linux/amd64`) succeeds, the image runs
 standalone and serves the real site correctly (`200` on `/`, `404`
 elsewhere). `bh2`'s own disk was rechecked clean (3.4G free, 62% used)
-before deploying for real.
+before deploying for real. **Deployed and verified**: shipped in
+seconds (8.46MB image, vs. the ~3-minute toolchain-pull-plus-compile
+the old server-side build needed) — `https://solemn.network` returns
+`200`, HTTP still redirects, `persona-web`'s logs show a clean
+startup, `bh2`'s disk sits at exactly the same 3.4G free after
+deploying as before (zero server-side build footprint, confirmed not
+just assumed), and `docker image ls persona-web` shows both the
+commit-tagged and `current` tags present for rollback.

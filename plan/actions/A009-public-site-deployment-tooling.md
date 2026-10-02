@@ -196,3 +196,31 @@ through `172.27.0.0/16` were entirely unused on `bh2`) and correctly
 inside the private range this time. Updated
 `docker-compose.yml`/`.env.example`/`README.md`; redeploying to
 actually apply it on `bh2` is this entry's own next step.
+
+2026-10-02 — **Hardened `deploy.sh` against two real gaps cinder's own
+`deploy.sh` already found and fixed** (pointed at directly: "Look at
+cinder deploy, they clear build cache after every product build").
+(1) Build cache is now pruned (`docker builder prune -a -f`, plus
+`docker image prune -f`) right after every build, not just once at the
+end — cinder's own comment names the exact reason: `bh2` is an
+8.7G-disk server shared by every product on it, and Docker's cache is
+never pruned on its own. **Live and urgent while this was being
+applied**: `bh2` actually hit 75MB free / 100% used mid-session, from
+a different session's (`wisp`) in-progress build compiling
+`modernc.org/sqlite` inside `golang:1.24` — not caused by this change,
+but a real-time demonstration of exactly the failure mode this fix
+guards against. Flagged to that session directly rather than pruning
+anything while their build was still in flight (their cache showed
+`RECLAIMABLE: false` via `docker buildx du`, confirming a prune
+wouldn't have been safe regardless); they killed their own build and
+reclaimed it themselves, disk settled at 1.8G free (80%) before this
+fix was actually committed/run. (2) Added an unconditional `docker
+compose restart persona-caddy` after every `up -d` — Compose's own
+change detection doesn't notice a bind-mounted Caddyfile's *content*
+changing, only the service definition itself, so a Caddyfile-only
+edit would silently never take effect. This exact symptom already
+hit this repo once (the http->https redirect fix needed a manual
+`ops.sh ... restart` to actually apply, in A009's own earlier Log
+entry) — cinder's `deploy.sh` had already independently hit and fixed
+the identical thing, confirming it as a real, recurring gap worth
+closing permanently rather than working around by hand each time.

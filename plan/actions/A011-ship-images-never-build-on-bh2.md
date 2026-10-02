@@ -1,7 +1,7 @@
 ---
 id: A011
 title: Ship locally built images; never build on bh2
-status: PLANNING
+status: DONE
 project: P001
 design: D001
 created: 2026-10-02
@@ -63,15 +63,28 @@ image; the live server never builds.**
 ## persona specifics
 
 - **Image to build locally:** `persona-web`
-  (`deploy/persona-web/Dockerfile`, `golang:1.24`).
-- `persona-caddy` stays `image: caddy:2`.
+  (`deploy/persona-web/Dockerfile`, `golang:1.24`). **Done** — see
+  [[A009]]'s own Log for the implementation (commit `9eda269`) and
+  live verification on `bh2`.
+- `persona-caddy` stays `image: caddy:2`. Unchanged, as this note
+  anticipated.
 - **Also worth fixing in the same pass:** persona's pinned Docker
   subnet `172.32.x` is public address space (outside RFC 1918's
-  172.16.0.0/12), noted in A010.
+  172.16.0.0/12), noted in A010. **Already fixed** by this repo's own
+  session before this note was filed — see A009's 2026-10-01 Log entry
+  (corrected to `172.21.1.0/24`), not something this pass needed to
+  do.
 
 ## Not done from wisp
 
-This is a note, not a change: the code in this repo is untouched.
+This was a note, not a change, when filed: the code in this repo was
+untouched at that point. persona's own session picked up the pattern
+independently the same day (prompted directly: "Wisp build docker
+snapshot now instead of building on bh2. Copy it.") and implemented it
+under [[A009]] before reconciling with this note — see A009's own Log
+for the real work (Dockerfile, `docker-compose.yml`, `deploy.sh`,
+verified live on `bh2`: 8.46MB image, seconds to ship, disk unchanged
+before/after).
 
 ## Log
 
@@ -79,3 +92,10 @@ This is a note, not a change: the code in this repo is untouched.
 scripts should be doing this. Share with offgrid, cinder, ephemnet,
 persona.") after the bh2 disk incident. Planning only; no code
 changed.
+
+2026-10-02 (later, same day) — Reconciled with [[A009]]: persona's own
+session implemented this pattern independently (same prompt, routed
+through this repo directly rather than this note) before noticing this
+action existed. No conflict in approach — both describe the exact same
+`wisp 211a9cb` reference pattern. Status moved to `DONE`; the real
+implementation Log lives in A009, not duplicated here.

@@ -224,3 +224,32 @@ hit this repo once (the http->https redirect fix needed a manual
 entry) — cinder's `deploy.sh` had already independently hit and fixed
 the identical thing, confirming it as a real, recurring gap worth
 closing permanently rather than working around by hand each time.
+
+2026-10-02 (later, same day) — **Superseded building on `bh2`
+entirely, copying `wisp`'s own follow-up fix** ("Wisp build docker
+snapshot now instead of building on bh2. Copy it."). `wisp` resolved
+its own disk emergency (above) by never building on `bh2` again —
+cross-compiling `persona-web`'s image on the dev machine and shipping
+it with `docker save | gzip | ssh | gunzip | docker load`, matching
+`wisp`'s own `deploy/wisp/Dockerfile`/`deploy/deploy.sh` pattern
+exactly: `deploy/persona-web/Dockerfile` now uses `FROM
+--platform=$BUILDPLATFORM golang:1.24` with `ARG TARGETOS TARGETARCH`
+so the build stage runs natively on the dev machine while
+cross-compiling for the server's real architecture (detected via `ssh
+... uname -m`) — no QEMU emulation needed, since Go cross-compiles
+natively and the binary has no CGO dependency.
+`deploy/docker-compose.yml`'s `persona-web` service changed from
+`build:` to `image: persona-web:current`; `deploy.sh` now builds
+locally, ships the image, refuses to start if the server has under
+300MB free (copied from `wisp`'s own guard, same reasoning: `bh2` is
+shared), tags the loaded image `persona-web:current`, and keeps the
+two most recent commit-tagged images for rollback. The per-build
+`docker builder prune -a -f` added earlier this same day is now
+largely moot for `persona-web` specifically (nothing builds on the
+server anymore to leave cache behind) but left in place — harmless,
+and still correct if this repo ever adds a second server-side-built
+service. Verified before touching the server: local cross-build
+(`docker build --platform linux/amd64`) succeeds, the image runs
+standalone and serves the real site correctly (`200` on `/`, `404`
+elsewhere). `bh2`'s own disk was rechecked clean (3.4G free, 62% used)
+before deploying for real.

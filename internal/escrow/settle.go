@@ -33,6 +33,14 @@ import (
 // doesn't yet have signatures satisfying any branch of its script.
 var ErrNotFinalizable = errors.New("escrow: input does not yet have signatures satisfying any script branch")
 
+// minRelayFeeSatPerVByte is the standard Bitcoin network default (1
+// sat/vByte) used to reject dust payouts in NewSettlementPacket. A
+// real deployment using a node with a different `-minrelaytxfee` would
+// need a different threshold — not expected to vary in practice, so
+// not exposed as a parameter; call IsDustOutput directly with a real
+// feerate if that assumption is ever wrong for a specific deployment.
+const minRelayFeeSatPerVByte = 1
+
 // NewSettlementPacket builds an unsigned PSBT spending a single
 // UniversalScript/ReinforcedScript/PreEscalationScript output. sequence
 // should be 0 unless the caller specifically intends to take the
@@ -40,7 +48,20 @@ var ErrNotFinalizable = errors.New("escrow: input does not yet have signatures s
 // script's own required sequence (see SequenceForDays) — the branches
 // requiring cooperation (mutual settlement, arbiter-assisted) have no
 // timelock and work with sequence 0.
+//
+// Rejects any payout below the standard dust threshold (see
+// IsDustOutput) — found missing while scoping A006's mainnet gate
+// (2026-09-30): nothing previously stopped this package from
+// constructing a transaction any real node's mempool policy would
+// simply refuse to relay. Checked here, not left to the caller,
+// because this is the one place that already has every payout in hand
+// before any signature work happens.
 func NewSettlementPacket(prevOut wire.OutPoint, prevTxOut *wire.TxOut, witnessScript []byte, payouts []*wire.TxOut, sequence uint32) (*psbt.Packet, error) {
+	for i, out := range payouts {
+		if IsDustOutput(out, minRelayFeeSatPerVByte) {
+			return nil, fmt.Errorf("escrow: payout %d (%d sats) is below the dust threshold", i, out.Value)
+		}
+	}
 	p, err := psbt.New([]*wire.OutPoint{&prevOut}, payouts, 2, 0, []uint32{sequence})
 	if err != nil {
 		return nil, fmt.Errorf("escrow: creating settlement packet: %w", err)

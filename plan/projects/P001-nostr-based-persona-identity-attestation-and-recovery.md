@@ -179,8 +179,9 @@ in [[D001]].
   new implementation, not a redesign. No action needed here; noted as
   confirmation the design already accommodates it.
   **Update, same day**: extracted for real —
-  `github.com/lnd3/paylayer@v0.1.0` (private repo, `GOPRIVATE`+SSH git
-  config needed to `go get` it). Contains the `PurchaseToken` contract,
+  `github.com/lnd3/paylayer@v0.1.0` (public repo, confirmed 2026-10-02 —
+  no `GOPRIVATE`/SSH config needed to `go get` it, unlike when this
+  note was first written). Contains the `PurchaseToken` contract,
   `Backend` interface, `RequireToken` middleware, `StaticBackend`, and
   the fault-injecting `Mock` (19 tests) — no real Lightning/L402
   backend yet. cinder's own `A018` paid listener already integrated

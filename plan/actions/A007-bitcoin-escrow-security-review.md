@@ -310,3 +310,31 @@ comments or DMs rather than the private message the original draft
 was written for — the substance of the outreach message doesn't need
 to change, but whoever responds to a reply should know it may arrive
 publicly/semi-publicly, not just in a private inbox.
+
+2026-10-05 — The LinkedIn post got 250 views and zero replies; the
+operator's own read is that LinkedIn is the wrong forum for this
+specific ask. `superplan` did real GitHub-API research (not guessed)
+into actual contributors with the right domain fit and dropped it via
+its steering outbox (`persona-todo-20261005T112737Z.md`) rather than
+only logging it on its own `M002`. Recorded here as candidate
+research only — **identifying/engaging a specific person is still not
+this action's or any AI's call**, per this action's own scope above.
+Ranked by fit to A006's actual script shape (`OP_IF`-branching
+multisig + CSV timelock, PSBT finalization), cross-referenced against
+real commit authorship on BIP-174/BIP-370:
+- `darosior` — strongest domain match: a `rust-miniscript` contributor
+  and BIP-370 commit author, known for Revault (a real vault-custody
+  project using the same OP_IF-branching + CSV-timelock shape).
+- `sanket1729` — `rust-miniscript`'s #2 contributor (the compiler/
+  policy language itself).
+- `achow101` (BIP-174's primary author) / `apoelstra` (`rust-
+  miniscript`'s creator) — highest authority, treated as a parallel
+  long-shot given likely low cold-outreach response odds, not the
+  primary plan.
+- `LLFourn`, `stevenroose`, `Kixunil` — solid secondary `rust-bitcoin`
+  contributors, held for a second wave if the first doesn't land.
+
+Still not actioned: no outreach sent to anyone on this list. The
+existing drafted message above remains the template; the operator's
+own next call is whether/when to personalize and send it to any of
+these names.

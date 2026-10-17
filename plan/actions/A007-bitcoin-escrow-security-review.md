@@ -338,3 +338,15 @@ Still not actioned: no outreach sent to anyone on this list. The
 existing drafted message above remains the template; the operator's
 own next call is whether/when to personalize and send it to any of
 these names.
+
+2026-10-17 — The public LinkedIn post has now sat for two weeks:
+250 views on 2026-10-02, 400 by today, zero comments or DMs either
+time. The operator's own call: defer reviewer outreach entirely
+rather than keep pushing on a channel that's shown no real signal —
+pick this back up only once there's measurable virality/chatter on
+the post, not on a fixed timer. "Identify a reviewer" stays unchecked
+and blocked, now explicitly on an external signal (post engagement)
+rather than on the operator actively working it. Nothing else in this
+action changes: the review package, pass criteria, and the candidate
+research logged above all stay ready to use whenever outreach
+resumes.

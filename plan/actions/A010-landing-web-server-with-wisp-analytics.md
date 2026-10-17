@@ -146,3 +146,21 @@ step 7 above for the exact checks. Status moved to `IN_PROGRESS` (not
 `DONE`): the integration is live and erroring nowhere, but a real
 batch actually reaching wisp's dashboard hasn't been confirmed yet —
 check back after the next UTC day boundary.
+
+2026-10-17 — Checked back, 16 days later. **Real signal, not a
+confirmed pass**: `persona-web`'s logs on `bh2` contain exactly one
+line total since deploy — `hook.Start` is documented to fail loud
+(not silently) on a bad `WISP_TOKEN`/`WISP_ENDPOINT`, so 16 days of
+silence is genuine evidence nothing's been erroring, not just absence
+of checking. Tried to confirm the stronger claim — a real batch
+actually landing on wisp's `/dashboard/` — and deliberately stopped
+short rather than force it: the dashboard itself is behind Caddy
+`basic_auth` I don't hold credentials for, and wisp's stats DB on disk
+(`/var/lib/docker/volumes/wisp-live_wisp-data/_data/stats.sqlite`) is
+root-only — both are real access boundaries wisp set up on purpose,
+not gaps to route around by fixing a `sudo` hostname-resolution error
+I happened to hit along the way. No `wisp` peer session was up to ask
+directly either. Leaving status at `IN_PROGRESS`, not escalating to
+`DONE` on indirect evidence alone — next step is asking wisp's own
+operator session for a direct dashboard confirmation once one is
+available, not retrying this check on a timer.

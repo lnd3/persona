@@ -352,6 +352,16 @@ in [[D001]].
       real channel, real Aperture config) named concretely rather than
       left vague, same "defer the harder cross-domain slice"
       discipline as A006's own escrow-settlement follow-up
+- [x] Implement A008 Stage 2 — done 2026-10-18, moved to DONE. Two
+      real `lnd` regtest nodes against the existing `btcd` backend, a
+      real funded channel between them, a real `aperture` instance
+      configured against one node and fronting the real gateway
+      handler, and the full L402 flow driven end to end with a real
+      Lightning payment — no simulation anywhere. Found and fixed a
+      real `aperture` config-key documentation gap along the way
+      (`goccy/go-yaml`'s untagged-field default doesn't match
+      `aperture`'s own sample config's `dbfile` key). Every bug hit
+      was in infrastructure/dependencies, never persona's own code.
 - [ ] Wait on `cinder` actually deploying its own paid tier live
       (Aperture config, a real Lightning provider account) only if/when
       this project wants to stand up its own reference gateway;

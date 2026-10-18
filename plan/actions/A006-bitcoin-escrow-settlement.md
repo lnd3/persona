@@ -474,7 +474,7 @@ longer applies; that history is kept in the Log, not here.**
         risk either way: still nothing in this package prints/logs the
         config. SOCKS5 proxy support remains unimplemented, as scoped
         (lower priority, not blocking).
-- [ ] **Confirmed NOT a gap, checked rather than assumed**: chain
+- [x] **Confirmed NOT a gap, checked rather than assumed**: chain
       selection (mainnet vs. testnet vs. regtest) is already properly
       parameterized — `FundingAddress` (`timelock.go`) takes
       `*chaincfg.Params` as a real argument, nothing in the production

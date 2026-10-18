@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-18 17:30:49 UTC*
+*Last updated: 2026-10-18 20:23:28 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -41,7 +41,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A005](actions/A005-bonding-slashing-dispute-resolution.md) | Bonding/slashing dispute resolution (dispute type 1 only) | DONE | D001 | TBD |
 | [A006](actions/A006-bitcoin-escrow-settlement.md) | Bitcoin escrow settlement (script construction, funding, on-chain verification) | PLANNING | D001 | TBD |
 | [A007](actions/A007-bitcoin-escrow-security-review.md) | Independent security review of the Bitcoin escrow scripts | PLANNING | D001 | TBD |
-| [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration | IN_PROGRESS | D001 | TBD |
+| [A008](actions/A008-aperture-l402-integration-template.md) | Aperture/L402 integration template (simulated), plus real Lightning-regtest integration | DONE | D001 | TBD |
 | [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |
 | [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics | IN_PROGRESS | D001 | TBD |
 | [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | DONE | D001 | TBD |

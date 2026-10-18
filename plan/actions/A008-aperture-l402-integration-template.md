@@ -1,11 +1,11 @@
 ---
 id: A008
-title: Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration
-status: IN_PROGRESS
+title: Aperture/L402 integration template (simulated), plus real Lightning-regtest integration
+status: DONE
 design: D001
 project: P001
 created: 2026-09-30
-updated: 2026-09-30
+updated: 2026-10-18
 ---
 
 ## Context
@@ -121,7 +121,7 @@ conflated:
       receipt, and re-verify it against an independently recomputed
       claim hash (not reusing the original `pending`/`hash` values)
 
-### Stage 2: real Aperture + Lightning regtest (in progress)
+### Stage 2: real Aperture + Lightning regtest (done)
 - [x] `git clone` `lnd` (`cmd/lnd`, `cmd/lncli`) and `aperture`
       (`cmd/aperture`) into a scratch directory each; `go build` from
       within each cloned tree (not `go install <module>@version` — see
@@ -138,16 +138,20 @@ conflated:
       2026-10-18** — see Log for the real BIP9/segwit activation gap
       hit and fixed, and the real payment that confirmed the channel
       actually works, not just that it opened.
-- [ ] Configure `aperture` against one node's macaroon/TLS, registered
+- [x] Configure `aperture` against one node's macaroon/TLS, registered
       as a backend service pointing at persona's own reference gateway
-      handler (the exact D005 shape, now actually running)
-- [ ] Drive the full flow for real end to end; confirm Aperture's real
-      gating, not a simulation, actually protects the gateway
-- [ ] Not started — explicitly deferred given the real setup cost
-      (two funded nodes, a real channel, real Aperture config, a build
-      step with its own environment-specific approval hurdle); same
-      "defer the harder cross-domain slice" discipline [[A006]] applied
-      to its own escrow-settlement follow-up
+      handler (the exact D005 shape, now actually running). **Done
+      2026-10-18** — see Log for a real `goccy/go-yaml` config-key gap
+      hit in `aperture`'s own upstream code.
+- [x] Drive the full flow for real end to end; confirm Aperture's real
+      gating, not a simulation, actually protects the gateway. **Done
+      2026-10-18** — full real flow passed, plus a negative control
+      proving Aperture's rejection is a genuine cryptographic check,
+      not a cached bypass. See Log.
+- [x] **Stage 2 is complete.** All four tasks above done for real,
+      not simulated — see Log for the full account, including every
+      real bug hit and fixed along the way (none of them in persona's
+      own code).
 
 ## Log
 
@@ -290,3 +294,79 @@ will depend on later. All of this lives in scratch space (`btcd`
 datadir, both `lnd` datadirs, both built binaries) — nothing
 committed to persona's own tree, and none of it survives past this
 session unless explicitly preserved.
+
+2026-10-18 (later still) — **Completed Stage 2 for real.** Configured
+`aperture` against node B (the gateway operator's own node, minting
+L402 challenges and checking invoice settlement) with a `sqlite`
+token-storage backend and one `services` entry pointing at a real
+backend server, then drove the full flow end to end with no step
+simulated.
+
+**Hit and fixed a real upstream config bug while wiring this up**:
+`aperture`'s own `sample-conf.yaml` documents `sqlite.dbfile`, but
+`aperturedb.SqliteConfig.DatabaseFileName` carries no `yaml` (or
+`json`) tag — confirmed by reading `goccy/go-yaml`'s own
+`structField()` (its fallback with no tag is
+`strings.ToLower(field.Name)`, i.e. `databasefilename`, never the
+`long` flag name `dbfile` the sample file uses). The practical effect:
+`dbfile:` in a real config file is silently ignored, `aperture` falls
+back to its own default `~/.aperture/aperture.db` path, and modernc's
+sqlite driver then fails opening that default location with a
+misleading `unable to open database file: out of memory (14)` (SQLite
+error 14 is `SQLITE_CANTOPEN`, not OOM — the driver's error-string
+table is just wrong here too). Confirmed concretely, not guessed: an
+isolated `modernc.org/sqlite` repro using `aperture`'s exact DSN/pragma
+string succeeded every time (including with `aperture`'s own pinned
+Go toolchain), and `strace -e trace=open` on the real `aperture-bin`
+showed it opening `/home/linus/.aperture/aperture.db` — the default
+path, not the one in my config — proving the YAML key itself, not
+sqlite/WAL/mmap, was the actual gap. Fixed locally by using the real
+matching key (`databasefilename:`) in this session's own scratch
+config; never touched `aperture`'s own source, since the fix needed
+is in its config file, not its code. Worth flagging upstream at some
+point, but out of scope for this action.
+
+With that fixed, `aperture` started cleanly: sqlite backend
+connected, `lnd` node B's authenticator recognized, listening
+real. Wrote a backend HTTP server directly exposing `NewGatewayHandler`
+(the exact function `A004`/`D005` built, no wrapper) and pointed
+`aperture`'s one `services` entry at it.
+
+**Drove the full real flow** (throwaway test file, deleted after use
+— same pattern as A006/A007's own throwaway live-verification files):
+1. A real initial `POST` through the real `aperture` instance (no
+   payment) → a real 402 with a real `WWW-Authenticate: LSAT
+   macaroon="...", invoice="..."` header — parsed by persona's own
+   unmodified `ChallengeFromResponse`.
+2. Paid the real invoice from `lnd` node A (the customer) over the
+   real channel opened in the previous Log entry, via `lncli
+   payinvoice`, recovering a real preimage from its JSON output.
+3. Retried through `aperture` with persona's own unmodified
+   `AuthorizationHeader(macaroon, preimageHex)` — `aperture`
+   genuinely, cryptographically verified the preimage against the
+   invoice's payment hash and the macaroon's own validity (its real
+   `L402Authenticator.Accept`, not a stub), then forwarded to the real
+   gateway handler, which returned a real signed `Receipt`.
+   `VerifyReceipt` passed against the real embedded signature;
+   `receipt.GatewayPubkey` matched the real gateway identity.
+4. **Negative control, beyond what the task asked for**: replayed the
+   same real macaroon with a wrong (all-zero) preimage — `aperture`
+   rejected it with a real 402, proving the gate actually checks the
+   preimage/macaroon pairing cryptographically rather than caching
+   "this macaroon was seen paid once" or any other shortcut that would
+   make the gate a bypassable formality.
+
+None of persona's own L402 client-side code (`l402.go`) or gateway
+code (`server.go`) needed any change to work against the real thing —
+Stage 1's simulation was faithful to the real protocol. Every real bug
+hit in this entire Stage 2 pass (BIP9/segwit activation timing, the
+stuck pending-channel record, this `aperture` config-key gap) was in
+infrastructure or a third-party dependency, never in persona's own
+code.
+
+Cleaned up fully: deleted the throwaway test file, confirmed
+`go build ./... && go vet ./... && go test ./...` clean (one unrelated
+flaky failure against a real public Nostr relay, confirmed transient
+by an immediate retry passing — not caused by this work), killed every
+scratch `btcd`/`lnd`/`aperture` process, nothing of this network
+persists past this session. A008 moved to `DONE`.

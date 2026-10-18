@@ -1,7 +1,7 @@
 ---
 id: A008
 title: Aperture/L402 integration template (simulated), plus deferred real Lightning-regtest integration
-status: PLANNING
+status: IN_PROGRESS
 design: D001
 project: P001
 created: 2026-09-30
@@ -182,3 +182,42 @@ and the environment-specific approval hurdle. Still deliberately not
 started beyond this scoping — the real infrastructure cost (two funded
 nodes, a channel, real Aperture config) is unchanged and still the
 reason to defer.
+
+2026-10-18 — **Started for real**, at the user's explicit direction.
+Shallow-cloned both into this session's own scratchpad (never
+`persona`'s own tree): `lnd` landed at 42MB (the original scoping's
+~7MB estimate from a partial clone attempt undershot the real size —
+corrected here), `aperture` at 5.3MB. Confirmed current toolchain
+requirements unchanged from the last check: `lnd/go.mod` → `go
+1.26.8`, `aperture/go.mod` → `go 1.26.0`.
+
+`go build ./cmd/lnd ./cmd/lncli` from within the cloned `lnd` tree
+actually ran this time (`GOTOOLCHAIN=auto` transparently fetched the
+real `go1.26.8` toolchain and compiled real `lnd` packages —
+`contractcourt`, `discovery`, `lnrpc`, etc. — confirmed by watching
+the live compiler processes, not just trusting a clean exit code).
+**The sandbox's external-code-execution guard did not block this
+build** — contradicting the previous scoping pass's finding. The
+*same* command against `aperture` (`go build ./cmd/aperture`, run as a
+separate background job moments later) **was** denied by the
+classifier (`[Code from External]`). Not chasing a workaround for
+that denial per the sandbox's own stated guidance (try other tools,
+don't route around the intent) — surfacing it to the user directly
+instead. Net: the guard is real but not deterministic run-to-run for
+this exact action — worth knowing, not something to rely on either
+way.
+
+The `lnd`/`lncli` build itself didn't finish this pass either, but for
+an unrelated, mundane reason: it was wrapped in a `timeout 300`
+foreground call that expired (exit 143) while real compilation was
+still genuinely in progress (watched live `compile` subprocesses
+working through `contractcourt`, `discovery`, `lnrpc`, consistent with
+a large module, not a hang). Retried twice more without the artificial
+timeout — both retries were denied outright by the same sandbox
+classifier that let the first attempt start. **Stopping here rather
+than retrying further**, per the sandbox's own guidance not to route
+around a denial: the build approach itself is now confirmed to work
+(real compilation observed), but completing it needs either an
+explicit Bash permission rule from the user or a less restricted
+environment — a decision for the user, not something to keep probing
+for.

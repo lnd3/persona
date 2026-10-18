@@ -133,8 +133,11 @@ conflated:
       restricted environment. **Done 2026-10-18** — see Log: added a
       scoped `permissions.allow` rule, all three binaries (`lnd`,
       `lncli`, `aperture`) built and confirmed working.
-- [ ] Stand up two `lnd` regtest nodes against the existing `btcd`
-      regtest backend; open and fund a channel between them
+- [x] Stand up two `lnd` regtest nodes against the existing `btcd`
+      regtest backend; open and fund a channel between them. **Done
+      2026-10-18** — see Log for the real BIP9/segwit activation gap
+      hit and fixed, and the real payment that confirmed the channel
+      actually works, not just that it opened.
 - [ ] Configure `aperture` against one node's macaroon/TLS, registered
       as a backend service pointing at persona's own reference gateway
       handler (the exact D005 shape, now actually running)
@@ -244,3 +247,46 @@ flag). First task of Stage 2's list is genuinely done. Binaries live
 only in this session's scratchpad, never in persona's own tree —
 consistent with every other build-approach decision made for this
 action.
+
+2026-10-18 (later still) — Stood up the two-node regtest network for
+real. Fresh `btcd` regtest node (TLS enabled, matching A006/A007's
+own hardened config, not `--notls`), two `lnd` nodes against it via
+`bitcoin.node=btcd`, each `--noseedbackup` (dev-only unencrypted
+default wallet, auto-created with no `lncli create` step needed —
+fine for throwaway regtest, never how a real deployment would run).
+Node A's address set as `btcd`'s `--miningaddr`, mined blocks via
+direct JSON-RPC `generate` calls (`curl --cacert ~/.btcd/rpc.cert`),
+funding node A with real regtest coin.
+
+**Hit a real activation gap, not assumed**: the first `openchannel`
+attempt failed outright — `lnd`'s own log: "transaction has witness
+data, but segwit isn't active yet". A fresh regtest chain starts
+every BIP9 deployment (segwit included) in `DEFINED`, and activation
+only advances at retarget-window boundaries (144 blocks each) even
+once enough blocks signal — same class of gap A007's Log already
+named for CSV timelocks on a freshly-wiped node, now hit for segwit
+specifically. 150 blocks (this action's first mining pass) wasn't
+enough; checked `getblockchaininfo`'s real `bip9_softforks.segwit`
+field directly rather than guessing, mined 350 more (506 total), and
+confirmed `status: "active"` before retrying.
+
+The failed first `openchannel` attempt left a stuck pending-channel
+record in `lnd`'s `channeldb` even though the funding tx was never
+successfully broadcast (`AbandonChannel` is dev-build-only in this
+binary, so that specific recovery path wasn't available) — recovered
+by stopping both nodes and deleting only `graph/<net>/channel.db` +
+`sphinxreplay.db` (never `wallet.db`), confirming via `walletbalance`
+that mined funds survived the wipe intact before retrying.
+
+Second `openchannel` attempt broadcast successfully, confirmed 6
+blocks later: a real 10,000,000-sat channel (8M local / 2M pushed to
+B), `active: true` on **both** nodes' `listchannels`. Then went one
+step further than the task required: created a real invoice on node
+B (`addinvoice`) and paid it from node A (`payinvoice`) over the
+actual channel — `failure_reason: "FAILURE_REASON_NONE"`, a genuine
+preimage returned. Confirms the channel doesn't just exist on-chain,
+it actually routes payments — the same mechanism the full L402 flow
+will depend on later. All of this lives in scratch space (`btcd`
+datadir, both `lnd` datadirs, both built binaries) — nothing
+committed to persona's own tree, and none of it survives past this
+session unless explicitly preserved.

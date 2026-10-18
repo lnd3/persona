@@ -121,8 +121,8 @@ conflated:
       receipt, and re-verify it against an independently recomputed
       claim hash (not reusing the original `pending`/`hash` values)
 
-### Stage 2: real Aperture + Lightning regtest (deferred, not started)
-- [ ] `git clone` `lnd` (`cmd/lnd`, `cmd/lncli`) and `aperture`
+### Stage 2: real Aperture + Lightning regtest (in progress)
+- [x] `git clone` `lnd` (`cmd/lnd`, `cmd/lncli`) and `aperture`
       (`cmd/aperture`) into a scratch directory each; `go build` from
       within each cloned tree (not `go install <module>@version` — see
       Decisions above for why that doesn't work for either). Re-check
@@ -130,7 +130,9 @@ conflated:
       scoping pass's numbers (both move release to release). Requires
       either explicit approval for building freshly-cloned external
       code in a sandboxed session, or doing this step in a less
-      restricted environment.
+      restricted environment. **Done 2026-10-18** — see Log: added a
+      scoped `permissions.allow` rule, all three binaries (`lnd`,
+      `lncli`, `aperture`) built and confirmed working.
 - [ ] Stand up two `lnd` regtest nodes against the existing `btcd`
       regtest backend; open and fund a channel between them
 - [ ] Configure `aperture` against one node's macaroon/TLS, registered
@@ -221,3 +223,24 @@ around a denial: the build approach itself is now confirmed to work
 explicit Bash permission rule from the user or a less restricted
 environment — a decision for the user, not something to keep probing
 for.
+
+2026-10-18 (later) — User approved a scoped Bash permission rule.
+Added to `.claude/settings.local.json` (project-local, gitignored —
+not committed): `Bash(go build ./cmd/lnd *)`, `Bash(go build
+./cmd/lncli *)`, `Bash(go build ./cmd/aperture *)`. Narrow by design —
+only these three build invocations bypass the auto-mode classifier,
+nothing broader. With the rule in place, re-ran the builds: `lnd`
+(99.6MB) and `lncli` (86.4MB) from the cloned `lnd` tree, `aperture`
+(76.4MB, pulling its own real transitive dependency graph —
+`lndclient`, `lnd`'s own fork pins, prometheus, etcd client, pgx,
+modernc sqlite, etc. — confirmed genuinely downloading and compiling,
+not materializing from nothing) from the cloned `aperture` tree. All
+three verified runnable, not just present on disk: `lnd-bin --version`
+→ `lnd-bin version 0.21.99-beta`, `lncli-bin --version` → `lncli
+version 0.21.99-beta`, `aperture-bin --version` → a real CLI-parsing
+error (`unknown flag \`version'\``), itself proof the binary runs and
+parses args correctly (`aperture`'s CLI just doesn't define that
+flag). First task of Stage 2's list is genuinely done. Binaries live
+only in this session's scratchpad, never in persona's own tree —
+consistent with every other build-approach decision made for this
+action.

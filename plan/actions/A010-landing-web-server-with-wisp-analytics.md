@@ -1,11 +1,11 @@
 ---
 id: A010
 title: Report persona's web traffic to wisp analytics
-status: IN_PROGRESS
+status: DONE
 design: D001
 project: P001
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-19
 ---
 
 ## Context
@@ -164,3 +164,13 @@ directly either. Leaving status at `IN_PROGRESS`, not escalating to
 `DONE` on indirect evidence alone — next step is asking wisp's own
 operator session for a direct dashboard confirmation once one is
 available, not retrying this check on a timer.
+
+2026-10-19 — Checked back again: `wisp.mera.network` itself now
+responds (200 on `/`), but `/dashboard/` is still behind `basic_auth`
+with no credentials held in this session, and no `wisp` peer session
+was up to ask. **The operator checked the dashboard directly and
+confirmed it**: persona batches are landing, with real analytics data
+going back to 2026-09-30. That's the actual, direct confirmation this
+action's own Log has been waiting on since 2026-10-01 — not inferred
+from log silence, not a peer-session relay, the operator's own look
+at the real dashboard. A010 moved to `DONE`.

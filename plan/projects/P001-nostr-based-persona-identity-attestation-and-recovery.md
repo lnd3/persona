@@ -391,7 +391,9 @@ in [[D001]].
       through its in-product hook (`github.com/lnd3/wisp/hook`, zero
       transitive dependencies — confirmed, not assumed). Registered
       with wisp (merged cleanly into its shared `products.json`,
-      confirmed via `registry`), deployed to `bh2`.
+      confirmed via `registry`), deployed to `bh2`. Moved to `DONE`
+      2026-10-19 — the operator directly confirmed real persona
+      analytics on wisp's dashboard, data going back to 2026-09-30.
 
 ## Log
 

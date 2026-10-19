@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-18 21:23:36 UTC*
+*Last updated: 2026-10-19 03:56:06 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -45,3 +45,4 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |
 | [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics | DONE | D001 | TBD |
 | [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | DONE | D001 | TBD |
+| [A012](actions/A012-nip07-browser-extension-signer.md) | NIP-07 browser-extension signer | PLANNING | D001 | TBD |

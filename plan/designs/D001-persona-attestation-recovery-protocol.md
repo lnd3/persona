@@ -535,19 +535,22 @@ applies to recovery's residual guardian-collusion risk.
   whether this project needs its own data-protection notice — policy/
   legal tasks, not architectural ones.
 - **Client-side signer (NIP-07 browser extension) — raised
-  2026-10-05, genuinely open, not decided.** `superplan` flagged (via
-  its own steering outbox, `persona-idea-20261005T112737Z.md`) that
-  `internal/identity`'s existing key material is already real Nostr
-  key material (`go-nostr`, x-only `secp256k1`, real NIP-19
+  2026-10-05, scoped 2026-10-19, see [[A012]].** `superplan` flagged
+  (via its own steering outbox, `persona-idea-20261005T112737Z.md`)
+  that `internal/identity`'s existing key material is already real
+  Nostr key material (`go-nostr`, x-only `secp256k1`, real NIP-19
   `Npub()`/`Nsec()`) — nothing new to build there — so a
   `persona`-built NIP-07 extension would make every existing Nostr
-  client work with a `persona`-custodied identity for free. Not
-  scoped, not actioned: open questions of its own (does `persona` want
-  to own browser-extension maintenance at all, how this interacts with
-  the "where this actually runs" answer above). Companion positioning
-  research (`persona-context-20261005T112737Z.md`, same outbox drop)
+  client work with a `persona`-custodied identity for free. "Worth
+  building at all" resolved to yes: this extension is now v1 of
+  P001's own long-standing "client application holding the user's
+  keys" requirement, not a separate thing — see A012's own Decisions
+  for the full scoping (key-import model, passphrase-encrypted
+  storage, multi-persona support, narrowed NIP-07 surface). Not yet
+  implemented. Companion positioning research
+  (`persona-context-20261005T112737Z.md`, same outbox drop)
   differentiates `persona` from Keet/Nostr/ION on this basis — kept as
-  reference material, not acted on.
+  reference material.
 
 ## Related
 

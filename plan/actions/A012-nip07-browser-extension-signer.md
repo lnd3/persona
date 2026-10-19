@@ -1,7 +1,7 @@
 ---
 id: A012
 title: NIP-07 browser-extension signer
-status: PLANNING
+status: IN_PROGRESS
 design: D001
 project: P001
 created: 2026-10-19
@@ -136,24 +136,31 @@ was already sitting as an unresolved Open Question.
 - [x] Name concrete out-of-scope boundaries rather than leaving them
       implicit
 
-### Stage 1: single-persona MVP (deferred, not started)
-- [ ] Bootstrap `extension/` (sibling to `site/`, `cmd/` — not part of
+### Stage 1: single-persona MVP (done)
+- [x] Bootstrap `extension/` (sibling to `site/`, `cmd/` — not part of
       the Go module): `manifest.json` (MV3), a background service
-      worker, a popup UI
-- [ ] Implement passphrase-encrypted storage for one imported/
-      generated persona (`PBKDF2` → `AES-GCM`, session unlock)
-- [ ] Implement `window.nostr.getPublicKey()`/`signEvent()` via
-      `nostr-tools`, each gated behind a real approval popup
-- [ ] Real interop test: sign a real event in the extension, publish
+      worker, a popup UI. **Done 2026-10-19.**
+- [x] Implement passphrase-encrypted storage for one imported/
+      generated persona (`PBKDF2` → `AES-GCM`, session unlock).
+      **Done 2026-10-19.**
+- [x] Implement `window.nostr.getPublicKey()`/`signEvent()` via
+      `nostr-tools`, each gated behind a real approval popup. **Done
+      2026-10-19.**
+- [x] Real interop test: sign a real event in the extension, publish
       it to a real public relay, fetch and verify it independently
-      with persona's own Go `attestation.Verify` — proving a
-      JS-signed and Go-signed event are indistinguishable to a
-      verifier, the actual point of standards compliance here
+      with persona's own Go signature-checking code. **Done
+      2026-10-19** — see Log for the exact chain (real Chromium via
+      Playwright, real approval popups, a real relay round trip).
 
-### Stage 2: multi-persona support (deferred, not started)
-- [ ] Support N stored personas with user-given labels
-- [ ] Per-origin active-persona mapping, with an explicit switch UI —
-      never an implicit cross-site default
+### Stage 2: multi-persona support (data model done as a byproduct; switch UX not separately tested)
+- [x] Support N stored personas with user-given labels — the storage
+      layer and popup UI already support this (not deliberately
+      exercised with N>1 personas in Stage 1's own testing, which
+      used exactly one)
+- [x] Per-origin active-persona mapping, with an explicit switch UI —
+      never an implicit cross-site default — the approval popup's
+      own persona picker IS this UI; `setActivePersonaForOrigin` is
+      real, not a stub
 
 ### Stage 3: out of scope for now, named not ignored (deferred)
 - [ ] Firefox parity (`webextension-polyfill`)
@@ -179,3 +186,72 @@ with every call gated behind a real approval popup. Nothing
 implemented yet — Stage 1 is the next real, unblocked, zero-financial-
 risk work this project has available while A007 stays parked on
 external signal.
+
+2026-10-19 (later) — **Stage 1 built and genuinely verified, not just
+compiled.** `extension/` (TypeScript, MV3, `nostr-tools` for all
+crypto): `crypto.ts` (`PBKDF2`→`AES-GCM` via WebCrypto, never
+hand-rolled), `storage.ts` (`chrome.storage.local` for encrypted
+personas + origin mapping, `chrome.storage.session` for
+decrypted-this-session key material — never written to disk),
+`nostr.ts` (thin wrapper over `nostr-tools/pure`), `background.ts`
+(the only code that ever touches a decrypted key), `content.ts`/
+`inject.ts` (the actual `window.nostr` the page sees, via a
+`postMessage` relay — content script never touches key material
+either), and a toolbar `popup` (persona management) plus a separate
+`approve` popup background.ts opens for *every single*
+`getPublicKey`/`signEvent` call, with no code path that skips it.
+
+Found and fixed one real UX/correctness gap while building the
+approval flow: an initial version closed the approval popup
+immediately on "Approve" regardless of outcome, so a wrong passphrase
+would silently fail the page's call with no way to retry without
+re-triggering the whole request. Fixed by having `background.ts`
+leave the pending request and its resolver untouched on a failed
+decrypt (only consuming it on an actual deny or success), and having
+`approve.ts` await the real outcome before deciding whether to close.
+
+**Verified for real, not just type-checked**: `tsc --noEmit` clean,
+`esbuild` bundle built, then driven in an actual unpacked install in
+a real Chromium (downloaded via Playwright, loaded with
+`--load-extension`/`--disable-extensions-except`, `--headless=new` —
+genuinely the same loading mechanism a user's own browser uses, not a
+mock). Created a real persona through the real toolbar popup
+(passphrase-encrypted on disk), then from a real separate test page:
+`window.nostr.getPublicKey()` triggered a real approval popup
+showing the real origin and persona picker, requiring the real
+passphrase to unlock (confirming storage truly starts locked each
+session) — returned the correct real pubkey. `window.nostr.
+signEvent()` then triggered a second real approval popup (no
+passphrase needed, confirming session-unlock persistence worked) and
+returned a real, fully-formed signed event.
+
+**The actual interop proof** (the point of building to a standard at
+all): took that real signed event's JSON and verified it with
+persona's own Go code — `(*nostr.Event).CheckSignature()` from
+`go-nostr`, the exact function `internal/attestation.Verify` itself
+calls internally, so this is the same check that code path already
+trusts elsewhere, not a weaker one. Passed. Then published it for
+real to `wss://nos.lol` (confirmed, not assumed — `relay.damus.io`
+hit the same transient 503 this project has seen before, confirmed
+unrelated by switching relays) and fetched it back, re-verifying
+independently — the same live round-trip discipline A001 established
+for persona's own Go-signed events, now proven for a JS-signed one
+too. A JS-extension-signed event and a Go-signed event are
+genuinely indistinguishable to a verifier.
+
+Stage 2's multi-persona data model (N stored personas, per-origin
+active-persona mapping with an explicit picker) already exists as a
+direct consequence of how Stage 1 was built — not deferred narrowing
+to one key as originally planned as a fallback. Not separately
+exercised with more than one real persona in this pass, so marked
+done on the data-model/UI level, not claimed as independently tested
+at N>1.
+
+Cleaned up: removed the throwaway Go interop-verification file,
+confirmed `go build ./... && go vet ./...` clean on persona's own
+module (the extension lives in its own `extension/` directory,
+`node_modules`/`dist` gitignored, never touching the Go module).
+Status moved to `IN_PROGRESS` (not `DONE`) — Stage 3's named
+out-of-scope items (Firefox parity, store distribution, NIP-46,
+`nip04`/`nip44`/`getRelays()`) remain genuinely not started, by
+design.

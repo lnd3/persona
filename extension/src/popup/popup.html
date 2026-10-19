@@ -1,0 +1,92 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>persona signer</title>
+    <style>
+      body {
+        font: 13px -apple-system, system-ui, sans-serif;
+        margin: 0;
+        padding: 14px;
+        width: 320px;
+        color: #1a1a1a;
+      }
+      h1 {
+        font-size: 15px;
+        margin: 0 0 10px;
+      }
+      h2 {
+        font-size: 12px;
+        text-transform: uppercase;
+        color: #777;
+        margin: 16px 0 6px;
+      }
+      .persona {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .persona .meta {
+        min-width: 0;
+      }
+      .persona .label {
+        font-weight: 600;
+      }
+      .persona .npub {
+        color: #777;
+        font-family: monospace;
+        font-size: 11px;
+        word-break: break-all;
+      }
+      .status {
+        font-size: 11px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-left: 6px;
+      }
+      .status.unlocked {
+        background: #e6f4ea;
+        color: #1a7f37;
+      }
+      .status.locked {
+        background: #f4f4f4;
+        color: #777;
+      }
+      button {
+        padding: 6px 10px;
+        font-size: 12px;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+        cursor: pointer;
+        background: white;
+      }
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      input {
+        padding: 6px;
+        font-size: 12px;
+      }
+      .row {
+        display: flex;
+        gap: 6px;
+      }
+      .error {
+        color: #b00020;
+      }
+      .empty {
+        color: #777;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>persona signer</h1>
+    <div id="app">Loading…</div>
+    <script type="module" src="../../dist/popup/popup.js"></script>
+  </body>
+</html>

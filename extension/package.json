@@ -1,0 +1,20 @@
+{
+  "name": "persona-nip07-extension",
+  "private": true,
+  "version": "0.1.0",
+  "description": "A001's identity layer, exposed to the web as a standard NIP-07 signer (A012, Stage 1).",
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "nostr-tools": "2.25.2"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.270",
+    "esbuild": "^0.28.2",
+    "typescript": "^5.6.0"
+  }
+}

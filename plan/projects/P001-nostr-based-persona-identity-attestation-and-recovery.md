@@ -394,6 +394,13 @@ in [[D001]].
       confirmed via `registry`), deployed to `bh2`. Moved to `DONE`
       2026-10-19 — the operator directly confirmed real persona
       analytics on wisp's dashboard, data going back to 2026-09-30.
+- [ ] File [[A012]]: NIP-07 browser-extension signer — filed and
+      scoped 2026-10-19, resolving D001's own Open Question of the
+      same name. This extension is now treated as v1 of this
+      project's own long-standing "client application holding the
+      user's keys" requirement (see this file's own Scope section),
+      not a separate thing to design later. Scoping done; Stage 1
+      (single-persona MVP) not yet started.
 
 ## Log
 

@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-19 16:04:29 UTC*
+*Last updated: 2026-10-22 12:52:05 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -46,3 +46,11 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics | DONE | D001 | TBD |
 | [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | DONE | D001 | TBD |
 | [A012](actions/A012-nip07-browser-extension-signer.md) | NIP-07 browser-extension signer | IN_PROGRESS | D001 | TBD |
+
+---
+
+## Inbox
+
+| ID | Title | Status | From | To |
+| --- | --- | --- | --- | --- |
+| [I001](inbox/I001-ephemnet-go-toolchain-security-bump.md) | EphemNet's Go toolchain security bump (1.24 -> 1.26.9) — persona is pinned to the same EOL version | DONE | EphemNet | persona maintainers |

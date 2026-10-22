@@ -70,11 +70,15 @@ re-derive): Go toolchain checksum-bypass (`CVE-2026-94447`),
       persona-web/Dockerfile`), ran the resulting container, and
       confirmed a real `200` serving the real site before cleaning up
       the test image/container
-- [ ] Deploy the bumped image to `bh2` — **not done in this pass,
-      deliberately**: this is persona's live production server; the
-      code-level fix is verified and ready, but actually shipping it
-      to the running service is a separate step worth the operator's
-      own go-ahead, not bundled into the same pass as the fix itself
+- [x] Deploy the bumped image to `bh2` — **done 2026-10-22**, at the
+      operator's explicit go-ahead. `deploy/deploy.sh bh2 /opt/persona
+      live` built `persona-web:9d3438c` locally, shipped it
+      (`docker save | ssh | docker load`), and restarted the live
+      containers. Verified live, not just a clean script exit:
+      `https://solemn.network/` returns a real `200` with a real
+      cert, and its own build-info footer reads `build 9d3438c ·
+      2026-10-22T11:09:24Z` — the exact commit with this fix, not a
+      stale image.
 
 ## Log
 
@@ -86,3 +90,13 @@ version, and proved the result with a real Docker build + run, not
 just a clean compile. Deployment to `bh2` intentionally left as a
 separate, operator-approved step — this action's own scope is the
 code fix, verified working, not a live production push.
+
+2026-10-22 (later) — Operator gave the go-ahead to deploy. Ran
+`deploy/deploy.sh bh2 /opt/persona live`: built `persona-web:9d3438c`
+locally, shipped it to `bh2`, restarted `persona-live-persona-web-1`/
+`persona-live-persona-caddy-1`. Verified live rather than trusting
+the script's own clean exit: `curl -s -o /dev/null -w "%{http_code}"
+https://solemn.network/` → `200`, and the live page's own build-info
+footer reads `build 9d3438c · 2026-10-22T11:09:24Z` — confirms the
+running container is genuinely serving this exact fix, not a cached
+or stale image. No further action needed on this gap.

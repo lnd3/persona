@@ -350,3 +350,13 @@ rather than on the operator actively working it. Nothing else in this
 action changes: the review package, pass criteria, and the candidate
 research logged above all stay ready to use whenever outreach
 resumes.
+
+2026-10-23 — The operator opened a second, real outreach channel: a
+`kind:1` Nostr note publicly asking for a Bitcoin Script/PSBT reviewer,
+posted from their own persona identity (key held in their own
+extension — A012 — never generated or seen by this session) via a
+generic NIP-07-compatible web client, not a dedicated page built for
+this. A real, separate shot at the same ask the LinkedIn post made,
+on a platform this project's own audience is more likely to actually
+be on. No engagement signal yet — too soon to tell. Tracking both
+channels' outcomes here rather than only the one.

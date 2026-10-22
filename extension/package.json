@@ -1,7 +1,7 @@
 {
   "name": "persona-nip07-extension",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A001's identity layer, exposed to the web as a standard NIP-07 signer (A012, Stage 1).",
   "type": "module",
   "scripts": {

@@ -893,3 +893,15 @@ Bitcoin escrow code is real, tested against a live regtest node, and
 now publicly visible — but still pending A007's independent review
 before being treated as mainnet-ready; the landing page states this
 status honestly rather than implying it's already cleared.
+
+2026-10-22 — The operator posted a general awareness post on LinkedIn
+pointing to `solemn.network` (and the public GitHub repo), aimed at
+traction/virality — distinct from A007's earlier LinkedIn post, which
+was a reviewer-recruitment call-to-action. Framing settled on after
+several drafts: plain, modest, no selling language, no institution-
+bashing, centered on "self-mandated identity" (people vouching for
+each other, the way trust worked before institutions formalized it)
+rather than any technical claim. Worth checking `wisp` analytics
+after this for any real traffic signal, same as A010's own pattern —
+not done automatically, since there's no fixed time this needs
+checking by.

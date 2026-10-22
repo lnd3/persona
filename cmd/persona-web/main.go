@@ -74,6 +74,9 @@ func main() {
 	// A real, live NIP-07 test against whatever signer extension a
 	// visitor has loaded — see plan/actions/A014.
 	servePage("/try-signer", "try-signer.html")
+	// A real attestation publisher (sign via NIP-07, publish/query
+	// real relays) — see plan/actions/A015.
+	servePage("/attest", "attest.html")
 
 	srv := &http.Server{
 		Addr:              addr,

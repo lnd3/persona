@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-22 23:01:15 UTC*
+*Last updated: 2026-10-22 23:21:15 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -49,6 +49,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A013](actions/A013-go-toolchain-security-bump-1-26.md) | Go toolchain security bump (1.24 -> 1.26.9) | DONE | D001 | TBD |
 | [A014](actions/A014-public-live-signer-test-page.md) | Public live NIP-07 signer test page | DONE | D001 | TBD |
 | [A015](actions/A015-web-attestation-publisher.md) | Web-based attestation publisher (NIP-07, not extension-specific) | DONE | D001 | TBD |
+| [A016](actions/A016-pre-public-release-sensitive-info-audit.md) | Pre-public-release sensitive-information audit | DONE | D001 | TBD |
 
 ---
 

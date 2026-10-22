@@ -30,17 +30,18 @@ patterns `gitleaks`'s default ruleset doesn't know about (Nostr
   GitHub API — on a project whose whole premise is identity
   sovereignty, which makes this a real, slightly ironic exposure, not
   a hypothetical one.
-  - **Forward fix is trivial and non-destructive**: set the local git
-    config's `user.email` to GitHub's noreply address
-    (`<id>+<username>@users.noreply.github.com`) so every future
-    commit stops carrying the real email.
-  - **Fixing the existing 92 commits is a real history rewrite**
-    (`git filter-repo`/BFG + force-push) — destructive, breaks any
-    existing fork/clone's shared history, and GitHub may retain the
-    old emails in its own API/search cache regardless of a rewrite.
-    **Not done here** — this is the operator's own call, the same
-    "never run a destructive operation without being asked" rule this
-    project has followed all along.
+  - **Forward fix**: done — see Log. Repo-local `user.email`
+    override to GitHub's confirmed-correct noreply address, not
+    touching the global config other repos on this machine still use.
+  - **Fixing the existing 92 commits** is a real history rewrite
+    (`git filter-repo` + force-push) — destructive, breaks any
+    existing fork/clone's shared history. **Done — see Log**: the
+    operator decided to do it now specifically because the repo had
+    just gone public, making this the cheapest point to ever do it
+    (minimal risk of existing forks). Thoroughly verified (tree
+    hashes, commit count, message order all identical to a backup
+    taken first) before force-pushing, and confirmed live on GitHub's
+    own API afterward, not assumed from a successful push alone.
 - **Real, low-severity**: the server's real public IP
   (`158.174.211.245`) is written out in `deploy/README.md` and
   `plan/actions/A009`, alongside the internal `bh2` codename.
@@ -88,6 +89,39 @@ two low-severity/informational ones (the real server IP, already
 public via DNS; a local username in one debug note), and a clean
 result everywhere else that actually matters for a public repo —
 checked with a real tool across full history, not a current-tree
-skim. Did not rewrite history; that's a real destructive operation on
-a repo others may have already cloned, left for the operator to
-decide.
+skim. Did not rewrite history yet; that's a real destructive
+operation on a repo others may have already cloned, left for the
+operator to decide.
+
+2026-10-22 (later) — Set a repo-local `user.email` override
+(`lnd3@users.noreply.github.com` — confirmed correct for this
+account, not guessed: that exact address already appeared
+legitimately on one GitHub-web-UI commit in this repo's own history)
+so every future commit here stops carrying the real email, without
+touching the global git config other repos on this machine still use.
+
+2026-10-22 (later still) — **Operator approved rewriting the existing
+92 commits.** Decided to do it now rather than defer: the repo just
+went public, so the cost of a history rewrite (broken forks/clones)
+is about as low as it will ever be, and only grows the longer real
+emails sit in public history. Used `git-filter-repo` (downloaded as
+the single-file script, no build) with an email-callback replacing
+the real address with the same confirmed-correct noreply one.
+
+Verified the rewrite thoroughly before touching the remote at all:
+every tree hash identical to a full mirror backup taken first
+(spot-checked 5 random commits plus `HEAD` itself), commit count
+unchanged (94), commit messages and order identical via a full diff
+against the backup, author *names* preserved (only the email
+changed). Only then re-added the `origin` remote (removed by
+`git-filter-repo` itself as a safety default) and force-pushed with
+an explicit `--force-with-lease` against the exact pre-rewrite remote
+SHA — not a bare `--force` — so the push would have failed instead of
+silently clobbering anything if the remote had moved underneath.
+
+Confirmed live on GitHub itself afterward, not just locally: fetched
+fresh and checked GitHub's own commits API directly, including the
+very first commit in the repo's history — every commit now shows the
+noreply email. A full mirror backup of the pre-rewrite state is kept
+at `/tmp/persona-backup-before-rewrite` (outside the repo, not
+committed) in case it's ever needed.

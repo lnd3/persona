@@ -125,3 +125,10 @@ very first commit in the repo's history — every commit now shows the
 noreply email. A full mirror backup of the pre-rewrite state is kept
 at `/tmp/persona-backup-before-rewrite` (outside the repo, not
 committed) in case it's ever needed.
+
+2026-10-22 (later) — Saved a standalone, polished version of this
+audit's findings as [`SECURITY_AUDIT.md`](../../SECURITY_AUDIT.md) at
+the repo root, matching this project's own existing convention
+(`internal/escrow/SECURITY_REVIEW.md` for A007) of keeping a real,
+public-facing reference document separate from this plan file's own
+chronological Log. Linked from `README.md`.

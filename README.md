@@ -19,6 +19,10 @@ See `plan/theses/T001-*.md` for the full reasoning and
 
 Planned with [lplan](https://github.com/lnd3/lplan) — see `plan/README.md`.
 
+See [`SECURITY_AUDIT.md`](SECURITY_AUDIT.md) for the pre-public-release
+sensitive-information audit (full git history, not just the current
+tree).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).

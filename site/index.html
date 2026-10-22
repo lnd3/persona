@@ -496,17 +496,20 @@
       <tr><td>Identity &amp; attestation events</td><td><span class="dot dot-done"></span>Done, tested, live relay round trips</td></tr>
       <tr><td>Relative trust computation</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
       <tr><td>Recovery (guardian attestation + SSKR)</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
-      <tr><td>Payment integration (L402 receipt gateway)</td><td><span class="dot dot-done"></span>Done, tested; simulated Aperture template proven end-to-end</td></tr>
+      <tr><td>Payment integration (L402 receipt gateway)</td><td><span class="dot dot-done"></span>Done, tested; proven end-to-end against a real Aperture instance over a real Lightning channel</td></tr>
       <tr><td>Bonding/slashing protocol layer</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
       <tr><td>Bitcoin escrow scripts &amp; settlement</td><td><span class="dot dot-done"></span>Implemented, tested against a real node</td></tr>
+      <tr><td>Real Aperture + Lightning-regtest integration</td><td><span class="dot dot-done"></span>Done — real L402 flow driven end-to-end against real Aperture + lnd regtest nodes</td></tr>
       <tr><td>Independent security review (escrow)</td><td><span class="dot dot-review"></span>Review package ready — awaiting a reviewer</td></tr>
-      <tr><td>Real Aperture + Lightning-regtest integration</td><td><span class="dot dot-review"></span>Deliberately deferred, not started</td></tr>
+      <tr><td>Client-side signer (NIP-07 browser extension)</td><td><span class="dot dot-review"></span>In progress — single-persona flow built and verified in a real browser; multi-persona switching and store distribution still open</td></tr>
     </table>
     <p class="muted" style="margin-top:16px;">
-      In short: the identity, trust, recovery, and payment layers are
-      done and tested. The Bitcoin escrow layer is implemented and
-      proven against a real node, but — by design — not treated as
-      mainnet-ready until it clears independent review.
+      In short: the identity, trust, recovery, payment, and Lightning
+      integration layers are done and tested. The Bitcoin escrow layer
+      is implemented and proven against a real node, but — by design —
+      not treated as mainnet-ready until it clears independent review.
+      The browser-extension signer is the one layer still actively
+      being built.
     </p>
   </div>
 </section>

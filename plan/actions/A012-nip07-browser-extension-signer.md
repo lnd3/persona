@@ -363,3 +363,28 @@ patch). `go build`-equivalent here is `tsc --noEmit` + `esbuild`, both
 clean. The already-published `extension-v0.1.0` GitHub Release
 carries this bug — worth a `v0.2.0` release once the operator's ready,
 not fixed silently in that existing release.
+
+2026-10-22 (later still) — **Built a real release packager**
+(`package-release.mjs`, `npm run package`), replacing the manual
+build-then-zip sequence used for `extension-v0.1.0`. Always rebuilds
+first — that sequence had no such guard, and "test against a stale
+`dist/` after editing `src/`" was a real mistake made more than once
+earlier in this same session, so the packager shouldn't have the
+same failure mode. Assembles exactly `manifest.json`, `dist/`, and
+the two popup `.html` files into a staging dir (never the whole
+`extension/` tree — no `node_modules`, no `.ts` source, no tooling),
+zips it via `archiver`'s `ZipArchive` (its own current API —
+confirmed by actually importing it and reading its README, not
+assumed from the classic `archiver(format, opts)` factory-function
+API an older version used), and names the output
+`release/persona-signer-v<version>.zip` from `manifest.json`'s own
+version field, not a hardcoded string.
+
+Verified for real, the same way every other build artifact in this
+action has been: ran `npm run package`, extracted the actual zip it
+produced, loaded that extracted folder as a real unpacked extension
+in a real Chromium, created a persona, read back `.build-info`'s real
+text (`build e361bcc · ...`) confirming it was genuinely built from
+current committed source, not a stale cached build. `release/` is
+gitignored — a build artifact, regenerated on demand, never
+committed.

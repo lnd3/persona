@@ -28,6 +28,18 @@ npm run typecheck
 4. Any page calling `window.nostr.getPublicKey()`/`signEvent()` will
    trigger a real approval popup.
 
+## Packaging a release
+
+```bash
+npm run package     # rebuilds first, then writes release/persona-signer-v<version>.zip
+```
+
+The zip contains exactly `manifest.json`, `dist/`, and the two popup
+`.html` files — what "Load unpacked" needs, extracted, nothing from
+the Go side or the rest of this repo. Used for the interim GitHub
+Releases distribution (see A012's own Log) while a real Chrome Web
+Store listing / Firefox-signed self-distribution remain unbuilt.
+
 ## What's deliberately not here yet
 
 See A012's own Decisions for the full list — Firefox parity, store

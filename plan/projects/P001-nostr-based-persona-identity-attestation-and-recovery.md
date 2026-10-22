@@ -424,16 +424,22 @@ in [[D001]].
       signature verification, not just a trust-the-extension display.
       Verified end to end with the real extension in a real Chromium.
       Not yet deployed to `bh2`.
-- [ ] File [[A015]]: web-based attestation publisher — filed and
-      scoped 2026-10-22, answering the operator's own question of
-      which other persona features (attestation, trust, recovery,
-      payment/escrow) fit the browser extension. Real finding:
-      attestation creation needs zero new extension code (`signEvent`
-      already covers it); the actual gap is a relay-talking publisher,
-      scoped as a public page (`/attest`), not extension code, for
-      the same interop reason as A014. Trust computation and payment/
-      escrow explicitly don't fit the extension's own shape — named,
-      not silently dropped. Nothing built yet.
+- [x] File and build [[A015]]: web-based attestation publisher —
+      filed, scoped, and built 2026-10-22, answering the operator's
+      own question of which other persona features (attestation,
+      trust, recovery, payment/escrow) fit the browser extension.
+      Real finding: attestation creation needed zero new extension
+      code (`signEvent` already covered it); the actual gap was a
+      relay-talking publisher, built as a public page (`/attest`),
+      not extension code, for the same interop reason as A014. Trust
+      computation and payment/escrow explicitly don't fit the
+      extension's own shape — named, not silently dropped. Verified
+      end to end: real persona, real extension, real approval popup,
+      real publish to `wss://nos.lol`/`wss://relay.damus.io` (the
+      latter hit its own known flakiness again, confirming the
+      redundancy decision was warranted), fetched back via the
+      page's own lookup, and separately verified with persona's own
+      Go `attestation.Verify`. Not yet deployed to `bh2`.
 
 ## Log
 

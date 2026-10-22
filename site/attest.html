@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Attest — persona</title>
+<meta name="description" content="Vouch for someone's identity, for real — a live, NIP-07-signed attestation published to real public relays.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --border: #d9dbe0;
+    --card: #ffffff;
+    --accent: #b45309;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --warn: #92400e;
+    --err: #b00020;
+    --code-bg: #f1f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214;
+      --fg: #e8e8ea;
+      --muted: #9aa0a6;
+      --border: #2e3035;
+      --card: #1b1c1f;
+      --accent: #e0932e;
+      --accent-fg: #16130a;
+      --ok: #3fb950;
+      --warn: #e3a53c;
+      --err: #ff6b6b;
+      --code-bg: #1e2024;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1.05rem; margin: 0 0 6px; }
+  .card p { color: var(--muted); margin: 0 0 14px; font-size: 0.93rem; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin: 12px 0 4px; }
+  label:first-of-type { margin-top: 0; }
+  input, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 56px; }
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .btn {
+    display: inline-block;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-fg);
+    margin-top: 14px;
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  pre {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 12px 0 0;
+  }
+  .status { font-size: 0.88rem; margin-top: 10px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .status.warn { color: var(--warn); }
+  .result-item {
+    border-top: 1px solid var(--border);
+    padding: 10px 0;
+    font-size: 0.86rem;
+  }
+  .result-item:first-child { border-top: none; padding-top: 0; }
+  .result-item .meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  footer { color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/">&larr; back to persona</a></p>
+  <h1>Attest</h1>
+  <p class="lead">
+    Vouch for a specific, real thing about someone — not a star
+    rating, a concrete claim. This builds a real
+    <a href="https://github.com/nostr-protocol/nips/blob/master/01.md">NIP-01</a>
+    event (<code>kind 3300</code>, persona's own attestation shape),
+    signs it with <code>window.nostr</code> (any NIP-07 signer — the
+    <a href="/try-signer">persona extension</a> or another), and
+    publishes it to real public relays. There's no separate "send
+    this to them" step — publishing to a relay <em>is</em> the
+    delivery; anyone can look it up by querying for events tagging
+    that pubkey, same as the lookup below does.
+  </p>
+
+  <div class="card">
+    <h2>Make an attestation</h2>
+    <label for="subject">Subject (their <code>npub</code> or hex pubkey)</label>
+    <input type="text" id="subject" placeholder="npub1… or 64-char hex" />
+
+    <label for="claim-type">Claim type</label>
+    <input type="text" id="claim-type" placeholder="org.example.skill.rust" value="org.example.skill.rust" />
+    <div class="hint">Reverse-domain namespaced — at least two
+      dot-separated labels, e.g. <code>org.example.skill.rust</code>.
+      Anyone can mint a new one; no registry required.</div>
+
+    <label for="claim-value">Claim value</label>
+    <input type="text" id="claim-value" placeholder="e.g. advanced" />
+
+    <label for="summary">Summary (shown to any generic Nostr client)</label>
+    <textarea id="summary" placeholder="e.g. Worked with them on a real project; their Rust is solid."></textarea>
+
+    <button class="btn" id="btn-attest">Sign and publish</button>
+    <div id="attest-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Look up attestations about someone</h2>
+    <label for="lookup-subject">Subject (<code>npub</code> or hex pubkey)</label>
+    <input type="text" id="lookup-subject" placeholder="npub1… or 64-char hex" />
+    <button class="btn" id="btn-lookup">Look up</button>
+    <div id="lookup-result"></div>
+  </div>
+
+  <footer>
+    This page doesn't compute or show <em>trust</em> — only persona's
+    own code decides how much any one claim should matter, and that's
+    always relative to whoever's asking, never a global score. No
+    extension? <a href="/try-signer">check you have one loaded</a>
+    first.
+  </footer>
+</div>
+
+<script type="module">
+  import { SimplePool } from "https://esm.sh/nostr-tools@2.25.2/pool";
+  import { nip19 } from "https://esm.sh/nostr-tools@2.25.2";
+
+  const RELAYS = ["wss://nos.lol", "wss://relay.damus.io"];
+  const KIND = 3300;
+  // Ported directly from internal/attestation/attestation.go's own
+  // claimTypeRE -- same rule, not re-derived.
+  const CLAIM_TYPE_RE = /^[a-z0-9]+([_-][a-z0-9]+)*(\.[a-z0-9]+([_-][a-z0-9]+)*)+$/;
+
+  const pool = new SimplePool();
+
+  function setStatus(el, html, cls) {
+    el.innerHTML = `<p class="status ${cls}">${html}</p>`;
+  }
+
+  function resolvePubkey(input) {
+    const trimmed = input.trim();
+    if (trimmed.startsWith("npub1")) {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type !== "npub") throw new Error("not a valid npub");
+      return decoded.data;
+    }
+    if (/^[0-9a-f]{64}$/i.test(trimmed)) return trimmed.toLowerCase();
+    throw new Error("expected an npub1… or a 64-char hex pubkey");
+  }
+
+  document.getElementById("btn-attest").addEventListener("click", async () => {
+    const resultBox = document.getElementById("attest-result");
+    resultBox.innerHTML = "";
+    try {
+      if (!window.nostr) throw new Error("No NIP-07 signer found. Load the persona extension (or another) first.");
+
+      const subjectPubkey = resolvePubkey(document.getElementById("subject").value);
+      const claimType = document.getElementById("claim-type").value.trim();
+      const claimValue = document.getElementById("claim-value").value.trim();
+      const summary = document.getElementById("summary").value.trim();
+
+      if (!CLAIM_TYPE_RE.test(claimType)) {
+        throw new Error("claim_type must be reverse-domain namespaced, e.g. \"org.example.skill.rust\"");
+      }
+
+      const template = {
+        kind: KIND,
+        created_at: Math.floor(Date.now() / 1000),
+        tags: [["p", subjectPubkey], ["claim_type", claimType], ["claim_value", claimValue]],
+        content: summary,
+      };
+
+      setStatus(resultBox, "Waiting for your signer's approval…", "warn");
+      const signed = await window.nostr.signEvent(template);
+
+      setStatus(resultBox, "Publishing to real relays…", "warn");
+      const settled = await Promise.allSettled(pool.publish(RELAYS, signed));
+      const okCount = settled.filter((r) => r.status === "fulfilled").length;
+      if (okCount === 0) {
+        throw new Error("Every relay rejected the publish: " + settled.map((r) => r.reason).join("; "));
+      }
+
+      resultBox.innerHTML = `
+        <p class="status ok">✓ Published to ${okCount}/${RELAYS.length} relays.</p>
+        <pre>${JSON.stringify(signed, null, 2)}</pre>
+      `;
+    } catch (err) {
+      setStatus(resultBox, err.message ?? String(err), "err");
+    }
+  });
+
+  document.getElementById("btn-lookup").addEventListener("click", async () => {
+    const resultBox = document.getElementById("lookup-result");
+    resultBox.innerHTML = "";
+    try {
+      const subjectPubkey = resolvePubkey(document.getElementById("lookup-subject").value);
+      setStatus(resultBox, "Querying real relays…", "warn");
+      const events = await pool.querySync(RELAYS, { kinds: [KIND], "#p": [subjectPubkey] });
+      if (events.length === 0) {
+        setStatus(resultBox, "No attestations found for this subject on these relays.", "warn");
+        return;
+      }
+      events.sort((a, b) => b.created_at - a.created_at);
+      resultBox.innerHTML = events
+        .map((e) => {
+          const claimType = e.tags.find((t) => t[0] === "claim_type")?.[1] ?? "(missing)";
+          const claimValue = e.tags.find((t) => t[0] === "claim_value")?.[1] ?? "";
+          const when = new Date(e.created_at * 1000).toISOString();
+          return `
+            <div class="result-item">
+              <div><strong>${claimType}</strong>${claimValue ? `: ${claimValue}` : ""}</div>
+              <div>${e.content ? e.content.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c])) : "<em>(no summary)</em>"}</div>
+              <div class="meta">from ${e.pubkey.slice(0, 16)}… · ${when}</div>
+            </div>`;
+        })
+        .join("");
+    } catch (err) {
+      setStatus(resultBox, err.message ?? String(err), "err");
+    }
+  });
+</script>
+</body>
+</html>

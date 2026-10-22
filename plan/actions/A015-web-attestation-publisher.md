@@ -1,7 +1,7 @@
 ---
 id: A015
 title: Web-based attestation publisher (NIP-07, not extension-specific)
-status: PLANNING
+status: DONE
 design: D001
 project: P001
 created: 2026-10-22
@@ -77,19 +77,19 @@ D001's own interop-scope resolution applied here directly.
 - [x] Name the real new work: relay publish/fetch from the browser,
       which nothing client-side does today
 
-### Build (deferred, not started)
-- [ ] `site/attest.html`: form for subject npub/pubkey, `claim_type`
+### Build (done)
+- [x] `site/attest.html`: form for subject npub/pubkey, `claim_type`
       (client-side regex validation matching `attestation.go`
       exactly), `claim_value`, a human-readable summary
-- [ ] Build the exact unsigned event object (`kind: 3300`, the three
+- [x] Build the exact unsigned event object (`kind: 3300`, the three
       tags, `content`), call `window.nostr.signEvent()`
-- [ ] Publish the signed event to real relays via `nostr-tools`'
+- [x] Publish the signed event to real relays via `nostr-tools`'
       relay pool (`esm.sh` import, A014's own pattern)
-- [ ] A simple read side: fetch and list existing attestations about
+- [x] A simple read side: fetch and list existing attestations about
       a given subject pubkey from the same relays
-- [ ] Wire a real route in `persona-web` (`servePage`, A014's own
+- [x] Wire a real route in `persona-web` (`servePage`, A014's own
       helper) — `/attest`
-- [ ] Real interop test, same discipline as A012/A014: sign via the
+- [x] Real interop test, same discipline as A012/A014: sign via the
       page (with the real extension, in a real Chromium), publish to
       a real relay, fetch it back and verify with persona's own Go
       `attestation.Verify` — not just `CheckSignature`, since this is
@@ -105,3 +105,37 @@ creation needs. The actual gap is a relay-talking publisher, scoped
 as a public page (`/attest`) rather than extension code, for the same
 interop reason A014's `try-signer.html` was built that way. Nothing
 implemented yet.
+
+2026-10-22 (later) — **Built and verified end to end.** Confirmed
+`nostr-tools`' `SimplePool` API directly before writing the page
+(`publish(relays, event)`, `querySync(relays, filter)`) with a live
+Node round trip against a real relay first — not assumed from memory.
+`site/attest.html`: builds the exact `kind: 3300` event shape,
+ported `claimTypeRE` verbatim for instant client-side feedback, signs
+via `window.nostr.signEvent`, publishes to `wss://nos.lol` +
+`wss://relay.damus.io` (treats any relay succeeding as a pass — one
+relay's own documented flakiness in this project's history means
+requiring all of them would make the page needlessly fragile), and a
+read side that queries the same relays for existing attestations
+about a subject and lists them. Wired the real `/attest` route in
+`persona-web` via A014's own `servePage` helper.
+
+**Full real interop chain, not simulated anywhere**: created a real
+persona in the real extension (real Chromium), filled in the real
+page, signed through a real approval popup, published — `relay.damus.io`
+hit its known 503 flakiness again during this exact run, confirming
+it's a real, persistent relay issue and not a one-off; `nos.lol`
+carried the publish, exactly the redundancy this Decision was made
+for. Fetched the attestation back via the page's own lookup (found
+it), then separately verified the exact signed JSON with persona's
+own Go `attestation.Verify` (the actual claim-shape check — attester/
+subject/claim_type/claim_value/summary all extracted correctly) —
+not just a generic signature check. A page-built, extension-signed,
+relay-published event is genuinely indistinguishable from a
+Go-signed one, the same interop bar every other NIP-07 piece in this
+project has been held to.
+
+Cleaned up: removed the throwaway Go verification file, killed all
+test Chromium/`persona-web` processes, `go build/vet/test` clean. No
+extension changes were needed, confirming this scoping pass's own
+central finding. A015 moved to `DONE`. Not yet deployed to `bh2`.

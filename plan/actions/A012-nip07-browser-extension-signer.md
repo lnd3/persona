@@ -1,11 +1,11 @@
 ---
 id: A012
 title: NIP-07 browser-extension signer
-status: IN_PROGRESS
+status: DONE
 design: D001
 project: P001
 created: 2026-10-19
-updated: 2026-10-19
+updated: 2026-10-22
 ---
 
 ## Context
@@ -152,15 +152,15 @@ was already sitting as an unresolved Open Question.
       2026-10-19** — see Log for the exact chain (real Chromium via
       Playwright, real approval popups, a real relay round trip).
 
-### Stage 2: multi-persona support (data model done as a byproduct; switch UX not separately tested)
-- [x] Support N stored personas with user-given labels — the storage
-      layer and popup UI already support this (not deliberately
-      exercised with N>1 personas in Stage 1's own testing, which
-      used exactly one)
+### Stage 2: multi-persona support (done, genuinely tested with N=2)
+- [x] Support N stored personas with user-given labels — exercised
+      for real with two real personas ("work"/"personal"), each with
+      a distinct pubkey. **Done 2026-10-22** — see Log.
 - [x] Per-origin active-persona mapping, with an explicit switch UI —
-      never an implicit cross-site default — the approval popup's
-      own persona picker IS this UI; `setActivePersonaForOrigin` is
-      real, not a stub
+      never an implicit cross-site default. **Done 2026-10-22** — see
+      Log for the real multi-origin test proving per-origin memory,
+      per-persona unlock isolation, and that an explicit switch
+      actually persists rather than being a one-off override.
 
 ### Stage 3: out of scope for now, named not ignored (deferred)
 - [ ] Firefox parity (`webextension-polyfill`)
@@ -251,7 +251,52 @@ Cleaned up: removed the throwaway Go interop-verification file,
 confirmed `go build ./... && go vet ./...` clean on persona's own
 module (the extension lives in its own `extension/` directory,
 `node_modules`/`dist` gitignored, never touching the Go module).
-Status moved to `IN_PROGRESS` (not `DONE`) — Stage 3's named
-out-of-scope items (Firefox parity, store distribution, NIP-46,
-`nip04`/`nip44`/`getRelays()`) remain genuinely not started, by
-design.
+Status left `IN_PROGRESS` — Stage 2's own multi-persona data model
+existed but hadn't been genuinely exercised with more than one real
+persona yet; see the next Log entry for that.
+
+2026-10-22 — **Stage 2 genuinely tested, not just present in the
+code.** Real multi-persona, multi-origin Playwright test against the
+real unpacked extension (same real-Chromium harness as Stage 1's own
+interop test): created two real personas ("work"/"personal", each
+with its own passphrase and a genuinely distinct pubkey), then drove
+two separate real test-page origins through the real approval popup:
+
+1. Origin A requests `getPublicKey`, explicitly picks "work", unlocks
+   it with its passphrase — returns work's real pubkey.
+2. Origin B requests `getPublicKey` — no mapping yet — explicitly
+   picks "personal", **requires its own separate passphrase** even
+   though "work" is already unlocked this session. Confirms unlock
+   state is tracked per-persona, not a single global "the extension
+   is unlocked" flag.
+3. Origin A asks again: the popup **defaults** to "work" with no
+   passphrase prompt — confirms both the per-origin memory
+   (`getActivePersonaForOrigin`) and the session-persistent unlock
+   (`chrome.storage.session`) are real, not just present in the code.
+4. Origin A **explicitly switches** to "personal" via the same picker
+   — the actual switch UI this action's own Decisions called for,
+   not an implicit default change.
+5. Origin A asks a third time: the default has genuinely followed the
+   switch — proving `setActivePersonaForOrigin` persists the change
+   rather than only affecting the one call it was made during.
+6. Origin B, untouched by any of A's activity, still defaults to its
+   own "personal" assignment from step 2 — confirming origins are
+   genuinely isolated from each other, not sharing one mapping.
+
+Found one real test-harness bug while writing this (not an extension
+bug): the test's own wait for "the new persona appeared" matched the
+*first* `.persona` DOM element rather than one with the new label,
+so creating a second persona raced against the first popup's own
+initial paint. Fixed by waiting for an element containing that
+specific label. Worth recording since it's the kind of race a real
+multi-persona UI test has to get right, not specific to this
+extension.
+
+Cleaned up: killed the test Chromium/profile directories; nothing
+from this pass touches persona's own tree beyond this plan file (the
+extension's own source was already committed in the previous pass).
+A012 moved to `DONE` — Stage 1 and Stage 2 (this action's actual
+scope) are both genuinely built and verified; Stage 3's items
+(Firefox parity, store distribution, NIP-46, `nip04`/`nip44`/
+`getRelays()`) were named out of scope for this action from the
+start (see this file's own Decisions), not something left unfinished.

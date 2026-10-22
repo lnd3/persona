@@ -415,6 +415,15 @@ in [[D001]].
       verified with a real Docker build + run; deploying the bumped
       image to `bh2` left as a deliberate, separate operator-approved
       step.
+- [x] File and build [[A014]]: public live NIP-07 signer test page —
+      done 2026-10-22, at the operator's request to try the real
+      extension (A012) in their own browser rather than only this
+      session's own automated tests. Added `site/try-signer.html` and
+      a real new `persona-web` route (`/try-signer` — the server
+      previously only ever served `/`), with independent client-side
+      signature verification, not just a trust-the-extension display.
+      Verified end to end with the real extension in a real Chromium.
+      Not yet deployed to `bh2`.
 
 ## Log
 

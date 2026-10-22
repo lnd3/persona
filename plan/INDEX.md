@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-22 14:02:05 UTC*
+*Last updated: 2026-10-22 21:55:43 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -47,6 +47,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | DONE | D001 | TBD |
 | [A012](actions/A012-nip07-browser-extension-signer.md) | NIP-07 browser-extension signer | DONE | D001 | TBD |
 | [A013](actions/A013-go-toolchain-security-bump-1-26.md) | Go toolchain security bump (1.24 -> 1.26.9) | DONE | D001 | TBD |
+| [A014](actions/A014-public-live-signer-test-page.md) | Public live NIP-07 signer test page | DONE | D001 | TBD |
 
 ---
 

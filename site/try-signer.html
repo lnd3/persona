@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Try the persona signer — persona</title>
+<meta name="description" content="A real, live test of the persona NIP-07 browser-extension signer — get your public key and sign a real event, right here.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --border: #d9dbe0;
+    --card: #ffffff;
+    --accent: #b45309;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --warn: #92400e;
+    --err: #b00020;
+    --code-bg: #f1f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214;
+      --fg: #e8e8ea;
+      --muted: #9aa0a6;
+      --border: #2e3035;
+      --card: #1b1c1f;
+      --accent: #e0932e;
+      --accent-fg: #16130a;
+      --ok: #3fb950;
+      --warn: #e3a53c;
+      --err: #ff6b6b;
+      --code-bg: #1e2024;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1.05rem; margin: 0 0 6px; }
+  .card p { color: var(--muted); margin: 0 0 14px; font-size: 0.93rem; }
+  .btn {
+    display: inline-block;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-fg);
+  }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-ghost {
+    background: transparent;
+    color: var(--fg);
+    border: 1px solid var(--border);
+  }
+  pre {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 12px 0 0;
+  }
+  .status { font-size: 0.88rem; margin-top: 10px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .status.warn { color: var(--warn); }
+  footer { color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/">&larr; back to persona</a></p>
+  <h1>Try the persona signer, for real</h1>
+  <p class="lead">
+    This page talks to <code>window.nostr</code> — the same standard
+    interface (<a href="https://github.com/nostr-protocol/nips/blob/master/07.md">NIP-07</a>)
+    any Nostr web client uses. Nothing here is a simulation: if you've
+    got the persona extension loaded, the button below triggers its
+    real approval popup, and the signature you get back is checked
+    right in this page, independently, with no server round trip.
+  </p>
+
+  <div class="card" id="check-card">
+    <h2>1. Extension check</h2>
+    <p id="check-status">Checking for <code>window.nostr</code>…</p>
+  </div>
+
+  <div class="card">
+    <h2>2. Get your public key</h2>
+    <p>Asks the extension who you are. Approving this will show you
+    which persona you're acting as.</p>
+    <button class="btn" id="btn-pubkey">Get public key</button>
+    <div id="pubkey-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Sign a real event</h2>
+    <p>Builds a real, unsigned Nostr event and asks the extension to
+    sign it. The signature is then verified independently, in this
+    page's own JavaScript — not assumed valid just because the
+    extension returned something.</p>
+    <button class="btn" id="btn-sign">Sign a test note</button>
+    <div id="sign-result"></div>
+  </div>
+
+  <footer>
+    No extension yet? <a href="https://github.com/lnd3/persona/tree/main/extension">build and load it unpacked</a> —
+    see that folder's own README. Nothing you sign here is published
+    anywhere; this page only reads the result back to show you.
+  </footer>
+</div>
+
+<script type="module">
+  import { verifyEvent } from "https://esm.sh/nostr-tools@2.25.2/pure";
+
+  const checkStatus = document.getElementById("check-status");
+  const btnPubkey = document.getElementById("btn-pubkey");
+  const btnSign = document.getElementById("btn-sign");
+  const pubkeyResult = document.getElementById("pubkey-result");
+  const signResult = document.getElementById("sign-result");
+
+  function setStatus(el, text, cls) {
+    el.innerHTML = `<p class="status ${cls}">${text}</p>`;
+  }
+
+  if (window.nostr && typeof window.nostr.getPublicKey === "function") {
+    checkStatus.innerHTML = `<span class="status ok">✓ window.nostr is present — a signer extension is active.</span>`;
+  } else {
+    checkStatus.innerHTML = `<span class="status warn">✗ No window.nostr found. Install/load the persona extension first (see the link below), then reload this page.</span>`;
+    btnPubkey.disabled = true;
+    btnSign.disabled = true;
+  }
+
+  btnPubkey.addEventListener("click", async () => {
+    pubkeyResult.innerHTML = "";
+    try {
+      const pubkey = await window.nostr.getPublicKey();
+      setStatus(pubkeyResult, `Public key: <code>${pubkey}</code>`, "ok");
+    } catch (err) {
+      setStatus(pubkeyResult, `Request denied or failed: ${err.message ?? err}`, "err");
+    }
+  });
+
+  btnSign.addEventListener("click", async () => {
+    signResult.innerHTML = "";
+    const template = {
+      kind: 1,
+      created_at: Math.floor(Date.now() / 1000),
+      tags: [],
+      content: `Signed live from solemn.network's try-signer page at ${new Date().toISOString()}.`,
+    };
+    try {
+      const signed = await window.nostr.signEvent(template);
+      const valid = verifyEvent(signed);
+      signResult.innerHTML = `
+        <p class="status ${valid ? "ok" : "err"}">${valid ? "✓ Signature verified independently in this page." : "✗ Signature failed independent verification — this should never happen."}</p>
+        <pre>${JSON.stringify(signed, null, 2)}</pre>
+      `;
+    } catch (err) {
+      setStatus(signResult, `Request denied or failed: ${err.message ?? err}`, "err");
+    }
+  });
+</script>
+</body>
+</html>

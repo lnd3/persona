@@ -50,23 +50,30 @@ func main() {
 		log.Fatalf("persona-web: starting wisp hook: %v", err)
 	}
 
-	indexPath := filepath.Join(siteDir, "index.html")
 	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(rw http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" {
-			http.NotFound(rw, r)
-			return
-		}
-		rec := &statusRecorder{ResponseWriter: rw, status: http.StatusOK}
-		http.ServeFile(rec, r, indexPath)
-		// Only a real, successful page view counts — not a 404, not a
-		// 304 conditional-GET — per A010's own "after a successful page
-		// response" rule. "/" is already a route template (persona has
-		// exactly one real page today), never a raw path.
-		if rec.status == http.StatusOK {
-			w.View(r, "/")
-		}
-	})
+
+	// servePage serves one fixed file at one fixed path — never a raw
+	// path, never a directory listing — and counts a wisp view only
+	// after a real, successful (200) response, per A010's own rule.
+	servePage := func(path, file string) {
+		filePath := filepath.Join(siteDir, file)
+		mux.HandleFunc(path, func(rw http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != path {
+				http.NotFound(rw, r)
+				return
+			}
+			rec := &statusRecorder{ResponseWriter: rw, status: http.StatusOK}
+			http.ServeFile(rec, r, filePath)
+			if rec.status == http.StatusOK {
+				w.View(r, path)
+			}
+		})
+	}
+
+	servePage("/", "index.html")
+	// A real, live NIP-07 test against whatever signer extension a
+	// visitor has loaded — see plan/actions/A014.
+	servePage("/try-signer", "try-signer.html")
 
 	srv := &http.Server{
 		Addr:              addr,

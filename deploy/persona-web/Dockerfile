@@ -7,12 +7,19 @@
 #
 # The build stage runs on the build machine's own platform and
 # cross-compiles for the target (Go needs no emulation for this); only
-# the tiny final layer is per-architecture. golang:1.24 pins the
-# toolchain, matching go.mod's own `go 1.24.1`, so the result doesn't
+# the tiny final layer is per-architecture. golang:1.26 pins the
+# toolchain, matching go.mod's own `go 1.26.9`, so the result doesn't
 # depend on whichever Go the dev machine has installed.
 #
+# Bumped 2026-10-22 from golang:1.24 (EOL since Go 1.26 shipped on
+# 2026-02-11 — Go only backports security fixes to the latest two
+# major branches) after EphemNet's own cross-repo heads-up
+# (plan/inbox/I001) found persona pinned to the same unpatched
+# version. See plan/actions/A013's own Log for the real CVEs this
+# closes and how the fix was verified.
+#
 #   docker build --platform linux/amd64 -f deploy/persona-web/Dockerfile -t persona-web:test .
-FROM --platform=$BUILDPLATFORM golang:1.24 AS build
+FROM --platform=$BUILDPLATFORM golang:1.26 AS build
 ARG TARGETOS TARGETARCH
 WORKDIR /src
 COPY go.mod go.sum ./

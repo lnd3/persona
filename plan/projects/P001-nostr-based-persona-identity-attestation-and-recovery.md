@@ -399,8 +399,20 @@ in [[D001]].
       same name. This extension is now treated as v1 of this
       project's own long-standing "client application holding the
       user's keys" requirement (see this file's own Scope section),
-      not a separate thing to design later. Scoping done; Stage 1
-      (single-persona MVP) not yet started.
+      not a separate thing to design later. Stage 1 (single-persona
+      MVP) built and verified end to end 2026-10-19 — a real extension
+      loaded in a real Chromium, driven through real approval popups,
+      its signed event verified by persona's own Go code and
+      round-tripped through a real public relay. Still `IN_PROGRESS`:
+      Stage 3 (Firefox, store distribution, NIP-46, `nip04`/`nip44`)
+      remains out of scope by design.
+- [x] File and fix [[A013]]: Go toolchain security bump (1.24 ->
+      1.26.9) — done 2026-10-22, following `EphemNet`'s own real
+      cross-repo notice (persona's first `plan/inbox/` message).
+      `go.mod`/`golang.org/x/crypto`/the Dockerfile all bumped and
+      verified with a real Docker build + run; deploying the bumped
+      image to `bh2` left as a deliberate, separate operator-approved
+      step.
 
 ## Log
 

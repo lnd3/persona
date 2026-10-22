@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-22 13:10:30 UTC*
+*Last updated: 2026-10-22 13:37:06 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -45,7 +45,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A009](actions/A009-public-site-deployment-tooling.md) | Public site deployment tooling (solemn.network) | DONE | D001 | TBD |
 | [A010](actions/A010-landing-web-server-with-wisp-analytics.md) | Report persona's web traffic to wisp analytics | DONE | D001 | TBD |
 | [A011](actions/A011-ship-images-never-build-on-bh2.md) | Ship locally built images; never build on bh2 | DONE | D001 | TBD |
-| [A012](actions/A012-nip07-browser-extension-signer.md) | NIP-07 browser-extension signer | IN_PROGRESS | D001 | TBD |
+| [A012](actions/A012-nip07-browser-extension-signer.md) | NIP-07 browser-extension signer | DONE | D001 | TBD |
 | [A013](actions/A013-go-toolchain-security-bump-1-26.md) | Go toolchain security bump (1.24 -> 1.26.9) | DONE | D001 | TBD |
 
 ---

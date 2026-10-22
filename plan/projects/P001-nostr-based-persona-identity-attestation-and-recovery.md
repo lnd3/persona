@@ -394,18 +394,20 @@ in [[D001]].
       confirmed via `registry`), deployed to `bh2`. Moved to `DONE`
       2026-10-19 — the operator directly confirmed real persona
       analytics on wisp's dashboard, data going back to 2026-09-30.
-- [ ] File [[A012]]: NIP-07 browser-extension signer — filed and
-      scoped 2026-10-19, resolving D001's own Open Question of the
-      same name. This extension is now treated as v1 of this
-      project's own long-standing "client application holding the
-      user's keys" requirement (see this file's own Scope section),
-      not a separate thing to design later. Stage 1 (single-persona
-      MVP) built and verified end to end 2026-10-19 — a real extension
-      loaded in a real Chromium, driven through real approval popups,
-      its signed event verified by persona's own Go code and
-      round-tripped through a real public relay. Still `IN_PROGRESS`:
-      Stage 3 (Firefox, store distribution, NIP-46, `nip04`/`nip44`)
-      remains out of scope by design.
+- [x] File and build [[A012]]: NIP-07 browser-extension signer — filed
+      and scoped 2026-10-19, resolving D001's own Open Question of the
+      same name. This extension is now v1 of this project's own
+      long-standing "client application holding the user's keys"
+      requirement (see this file's own Scope section). Stage 1
+      (single-persona MVP) and Stage 2 (multi-persona, per-origin
+      switching) both built and genuinely verified in a real Chromium
+      — Stage 1's signed event round-tripped through a real public
+      relay and verified by persona's own Go code; Stage 2 proved two
+      real personas, per-origin memory, per-persona unlock isolation,
+      and a real persisting switch, not just the data model existing.
+      Moved to `DONE` 2026-10-22 — Stage 3 (Firefox, store
+      distribution, NIP-46, `nip04`/`nip44`) was named out of scope
+      for this action from the start, not left unfinished.
 - [x] File and fix [[A013]]: Go toolchain security bump (1.24 ->
       1.26.9) — done 2026-10-22, following `EphemNet`'s own real
       cross-repo notice (persona's first `plan/inbox/` message).

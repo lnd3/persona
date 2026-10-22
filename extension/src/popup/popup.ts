@@ -45,6 +45,7 @@ async function render(): Promise<void> {
       </div>
       <div class="error" id="form-error"></div>
     </form>
+    <div class="build-info">${__BUILD_INFO__}</div>
   `;
 
   document.querySelectorAll<HTMLButtonElement>(".delete").forEach((btn) => {

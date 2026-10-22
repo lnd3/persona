@@ -300,3 +300,20 @@ scope) are both genuinely built and verified; Stage 3's items
 (Firefox parity, store distribution, NIP-46, `nip04`/`nip44`/
 `getRelays()`) were named out of scope for this action from the
 start (see this file's own Decisions), not something left unfinished.
+
+2026-10-22 (later) — Added a build id + timestamp to the extension,
+at the operator's request, matching `deploy/deploy.sh`'s own
+`${PERSONA_BUILD_INFO}` convention for the public site exactly: `build
+<short-rev> · <UTC time>`. Unlike the site (where this gets baked in
+at *deploy* time via `envsubst`, since `site/index.html` has no build
+step of its own), the extension already has a real build step
+(`esbuild`), so this is computed in `build.mjs` itself (`git
+rev-parse --short HEAD`, falling back to `"unknown"` if no `.git` is
+available — e.g. a source tarball) and injected as a compile-time
+constant (`define: { __BUILD_INFO__: ... }`), not a runtime lookup.
+Shown in both the toolbar popup and the approval popup's main render
+(not its error/edge-case branches — rare paths, not worth the extra
+noise). Verified for real: rebuilt, loaded in a real Chromium, read
+`.build-info`'s actual text back from the real popup — confirmed
+`build afa7d50 · 2026-10-22T19:59:12Z`, matching the real commit this
+was built from.

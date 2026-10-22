@@ -74,6 +74,7 @@ async function render(): Promise<void> {
       <button class="deny" id="deny">Deny</button>
       <button class="approve" id="approve">Approve</button>
     </div>
+    <div class="build-info">${__BUILD_INFO__}</div>
   `;
 
   const select = document.getElementById("persona") as HTMLSelectElement;

@@ -317,3 +317,49 @@ noise). Verified for real: rebuilt, loaded in a real Chromium, read
 `.build-info`'s actual text back from the real popup — confirmed
 `build afa7d50 · 2026-10-22T19:59:12Z`, matching the real commit this
 was built from.
+
+2026-10-22 (later still) — The operator published the first GitHub
+Release (`extension-v0.1.0`) as an interim, unpacked-only distribution
+method while Chrome Web Store / Firefox-signed self-distribution
+remain unbuilt — verified for real before publishing: the exact zip
+asset, extracted fresh and loaded unpacked in a real Chromium,
+created a persona and signed with it correctly.
+
+**Added nsec export**, a real gap found by the operator: a persona
+*generated* inside the extension (not imported) had no way to ever
+get its `nsec` back out — losing access to the extension meant losing
+that key permanently. Added an "Export" button per persona in the
+toolbar popup: re-prompts for the passphrase, decrypts, and reveals
+the real `nsec` (with a copy button and an explicit warning), without
+a full `render()` re-run so the open/closed state of other UI doesn't
+reset. Verified end to end with the real extension: generated a
+fresh persona, exported its `nsec`, deleted the persona, re-imported
+via the exported `nsec`, and confirmed it reconstructs the *exact
+same* pubkey — the actual point of export, not just that a string
+comes out.
+
+**Found and fixed a real, previously-undetected bug in the primary
+approval flow while testing the wrong-passphrase case for export**:
+`crypto.subtle`'s AES-GCM auth-tag failure throws a `DOMException`
+named `OperationError` whose `.message` is an **empty string** — only
+`.name` carries anything. Both `background.ts`'s `resolveSecret` (the
+real approval-popup path) and the new export code were doing
+`err.message`, which rendered as a silently blank error box on a
+wrong passphrase. This bug existed in A012's very first pass and
+wasn't caught then because no test up to this point had ever tried a
+wrong passphrase against the real approval flow — every prior
+multi-persona/interop test used the correct passphrase throughout.
+Fixed both call sites to catch the decrypt failure specifically and
+throw a real `"Wrong passphrase."` message instead of relaying
+`err.message`. Verified for real: the real approval popup now shows
+"Wrong passphrase." on a bad attempt and — confirming the retry
+behavior documented earlier in this file's own Log still works
+correctly now that the message itself is real — lets the user
+immediately retry with the correct passphrase on the same
+still-pending request, which then succeeds.
+
+Version bumped to `0.2.0` (new feature + a real bug fix, not just a
+patch). `go build`-equivalent here is `tsc --noEmit` + `esbuild`, both
+clean. The already-published `extension-v0.1.0` GitHub Release
+carries this bug — worth a `v0.2.0` release once the operator's ready,
+not fixed silently in that existing release.

@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "persona signer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "A NIP-07 Nostr signer for persona identities — your keys never leave the extension.",
   "permissions": ["storage"],
   "background": {

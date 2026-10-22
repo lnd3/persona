@@ -76,7 +76,19 @@ async function resolveSecret(pubkeyHex: string, passphrase: string | undefined):
   const persona = (await listPersonas()).find((p) => p.pubkeyHex === pubkeyHex);
   if (!persona) throw new Error("unknown persona");
 
-  const skBytes = await decrypt(passphrase, persona.encrypted); // throws on wrong passphrase
+  let skBytes: Uint8Array;
+  try {
+    skBytes = await decrypt(passphrase, persona.encrypted);
+  } catch {
+    // AES-GCM's auth-tag check failing is the "wrong passphrase"
+    // signal (crypto.ts's own doc comment) -- but the resulting
+    // DOMException (name "OperationError") has an EMPTY .message, so
+    // letting it bubble up as-is renders as a blank error in
+    // approve.ts's own error box. A real bug found and fixed here,
+    // not caught earlier since no prior test exercised a wrong
+    // passphrase against the real approval flow.
+    throw new Error("Wrong passphrase.");
+  }
   const skHex = nostr.bytesToHex(skBytes);
   await setUnlocked(pubkeyHex, skHex);
   return skHex;

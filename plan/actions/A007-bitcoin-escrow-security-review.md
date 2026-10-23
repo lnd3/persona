@@ -360,3 +360,24 @@ this. A real, separate shot at the same ask the LinkedIn post made,
 on a platform this project's own audience is more likely to actually
 be on. No engagement signal yet — too soon to tell. Tracking both
 channels' outcomes here rather than only the one.
+
+2026-10-23 (later) — **Real engagement on the Nostr post**: one like,
+one reply, from someone who said they'd check it. Not yet a committed
+reviewer — "was gonna check it" is interest, not a confirmed
+engagement, and this stays unchecked until something more concrete
+lands — but the real content of the reply is worth recording either
+way: "watch the slashing branch for fee-bumping issues during
+spikes." Checked this against the actual code rather than filing it
+unexamined, per this project's own discipline: it's a real, confirmed
+gap — see [[A006]]'s own Log for the verification and the new open
+Task it produced. Whoever replied also said "sats behind a key is
+the only way identity matters" — close to this project's own stated
+thesis (economic, not biometric, sybil resistance), worth noting as a
+sign the post reached the right audience, not just noise.
+
+The operator also noted the reply thread itself won't load in their
+own Nostr client — likely a relay-propagation/client-sync issue on
+whichever client they're using, not anything in persona's own code
+(this project runs no relay and doesn't control reply-thread fetching
+in third-party clients). Not investigated further; not this project's
+problem to fix.

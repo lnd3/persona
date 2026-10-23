@@ -300,6 +300,14 @@ longer applies; that history is kept in the Log, not here.**
       logic (not self-certified) — hard gate, not a Task to check off
       solo; now tracked as its own action, [[A007]], filed 2026-09-30
       — this task is done once A007 records a pass
+- [ ] **Fee-bumping on a stuck settlement transaction, surfaced
+      2026-10-23 by a real [[A007]] reviewer lead** — no anchor-style
+      CPFP output, fee fixed at finalization time, bumping it means
+      re-running the full dispute-quorum signing ceremony again.
+      Verified real against the actual code, not taken on faith; not
+      fixed, needs real design work (candidate directions named in
+      this file's own Log) — fold into A007's review scope once a
+      reviewer actually engages
 - [x] **Confirmation depth — implemented 2026-09-30.** Was a real,
       unresolved policy gap (`RPCQuerier.TxOut` hardcoded
       `result.Confirmations < 1` as its only threshold, no path to
@@ -927,3 +935,33 @@ implemented.** A007's independent review remains the one actual
 mainnet gate left — these three were real, additional findings this
 session surfaced by reading the code rather than assuming the task
 list was complete, not a substitute for that review.
+
+2026-10-23 — **A real, fourth gap surfaced — from an actual reviewer
+lead this time, not this session's own code reading.** Someone
+replied to the operator's Nostr reviewer-outreach post (see A007's own
+Log) flagging fee-bumping during a fee-rate spike on the slashing
+branch specifically. Checked against the real code rather than taking
+it on faith: `NewSettlementPacket` bakes the fee into the payout
+amounts at finalization time (fee = funding amount minus the sum of
+`payouts`), and there is no anchor-style CPFP output anywhere in
+`settle.go`. Once the dispute quorum (arbiter + one party) has signed,
+raising the fee on a stuck transaction means re-running that entire
+signing ceremony again — not something either party can do
+unilaterally, and exactly the kind of inconvenience a *dispute*
+resolution path shouldn't have, since by definition the parties
+aren't cooperating smoothly in that branch. The transaction's `nSequence`
+values happen to be low enough to technically satisfy BIP125's
+opt-in-RBF bit, but that's incidental to the CSV encoding
+(`SequenceForDays`), not a deliberate RBF design choice, and RBF alone
+doesn't help without being able to gather the same signatures again
+anyway.
+
+**Not fixed here — genuinely needs real design thought, not a
+reactive patch**: candidate directions (an anchor-style low-value
+CPFP output any party could bump unilaterally; a conservative/padded
+default fee rate; or a secondary fee-bump path that doesn't need the
+full original quorum) each have real tradeoffs this action hasn't
+worked through. Tracked as a real, open item for the next real design
+pass on this file, and worth folding into A007's own review scope
+once a reviewer is actually engaged — this is exactly the kind of
+finding an independent review exists to catch.

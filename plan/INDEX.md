@@ -1,6 +1,6 @@
 # persona Plan Index
 
-*Last updated: 2026-10-23 13:07:19 UTC*
+*Last updated: 2026-10-23 13:38:41 UTC*
 
 Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRED` · `CANCELLED`
 
@@ -51,7 +51,7 @@ Status: `IDEA` · `PLANNING` · `IN_PROGRESS` · `BLOCKED` · `DONE` · `DEFERRE
 | [A015](actions/A015-web-attestation-publisher.md) | Web-based attestation publisher (NIP-07, not extension-specific) | DONE | D001 | TBD |
 | [A016](actions/A016-pre-public-release-sensitive-info-audit.md) | Pre-public-release sensitive-information audit | DONE | D001 | TBD |
 | [A017](actions/A017-identity-key-revocation.md) | Identity key revocation (stolen-key gap) | PLANNING | D001 | TBD |
-| [A018](actions/A018-recovery-extension-integration.md) | Guardian recovery — extension/page integration | PLANNING | D001 | TBD |
+| [A018](actions/A018-recovery-extension-integration.md) | Guardian recovery — extension/page integration | IN_PROGRESS | D001 | TBD |
 
 ---
 

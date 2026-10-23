@@ -449,18 +449,23 @@ in [[D001]].
       one), plus the easy-to-miss consequence that `A002`'s own trust
       computation would need to honor a revocation for this to
       actually matter, not just adding a claim type. Nothing built.
-- [ ] File [[A018]]: guardian recovery — extension/page integration —
-      filed and scoped 2026-10-23, answering the operator's own
-      question of how `A003`'s recovery fits the extension. Splits
-      cleanly along the custody boundary: designation/vouching need
-      zero new extension code (a page, like `A015`); actual
-      guardian-share generation genuinely can't be a page at all
-      (needs the raw key). Named the real fork on how the extension's
-      resulting signed events get published without giving the
-      extension network access itself — leaning toward keeping it
-      network-free, not yet confirmed. Explicitly follows `A017`'s own
-      reconstruct-vs-migrate resolution for part of its own scope.
-      Nothing built.
+- [x] File and build [[A018]]'s page half: guardian recovery —
+      extension/page integration — filed and scoped 2026-10-23,
+      answering the operator's own question of how `A003`'s recovery
+      fits the extension. Splits cleanly along the custody boundary:
+      designation/vouching need zero new extension code — built as
+      `/recovery` (`A015`'s own pattern) and verified end to end,
+      catching two real bugs along the way (a lookup query that
+      silently missed guardian-designation claims, and a mixed-up
+      signer-vs-subject field read, both caught by testing with a
+      genuinely distinct second guardian rather than trusting the
+      first, coincidentally-masked pass). Actual guardian-share
+      generation genuinely can't be a page at all (needs the raw
+      key) — still not built, and the real fork on how the
+      extension's resulting signed events get published without
+      giving it network access itself is still not confirmed. Also
+      still explicitly follows `A017`'s own reconstruct-vs-migrate
+      resolution for that remaining half.
 
 ## Log
 

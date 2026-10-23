@@ -1,7 +1,7 @@
 ---
 id: A018
 title: Guardian recovery — extension/page integration
-status: PLANNING
+status: IN_PROGRESS
 design: D001
 project: P001
 created: 2026-10-23
@@ -98,9 +98,11 @@ architectural consequences for each half.
 - [x] Name guardian-side receiving and the actual recovery moment as
       separate, unsolved pieces, not implied by owner-side setup
 
-### Build (deferred, not started — and blocked on A017's own resolution for part of this)
-- [ ] `/recovery` page: guardian designation + vouching, `A015`'s
-      exact pattern, no extension changes
+### Build (the page half done; the rest blocked on A017's own resolution)
+- [x] `/recovery` page: guardian designation + vouching, `A015`'s
+      exact pattern, no extension changes. **Done 2026-10-23** — see
+      Log for real bugs found and fixed along the way, including one
+      genuine logic bug in the lookup, not just test-harness issues.
 - [ ] Resolve Option A vs. B (needs the operator's own confirmation)
 - [ ] Extension: "Set up recovery" popup flow — `Split()`,
       per-guardian NIP-44 encryption, build + sign N `kind: 3301`
@@ -124,3 +126,53 @@ page-push plumbing to keep it network-free) without picking
 unilaterally — leaning toward keeping the extension network-free, but
 that's real new engineering, not a given. Nothing implemented;
 explicitly follows `A017`'s own resolution for part of its own scope.
+
+2026-10-23 (later) — **Built and verified the page half
+(`site/recovery.html`) for real — the operator picked this as the one
+piece with no open architecture decisions.** Three sections: designate
+guardians (one `recovery_guardian` claim per guardian, a fresh group
+ID), confirm as a guardian (one `recovery_confirm` claim), and check
+status (ports `internal/recovery/quorum.go`'s `GuardianSet`/
+`ThresholdMet` logic directly into JS, not re-derived). Wired a real
+`/recovery` route via `A014`'s own `servePage` helper.
+
+**Real bugs found and fixed while verifying end to end — not just
+test-harness noise, one was a genuine logic error**:
+- A fresh-pool-per-publish fix in `signAndPublish` after a minimal
+  Node repro showed `nostr-tools`' `SimplePool` has a real issue
+  reusing one pool across back-to-back publishes in rapid succession
+  (confirmed independent of which relays were used); a fresh
+  `SimplePool` per publish call is cheap and sidesteps it.
+- Swapped `wss://relay.damus.io` for `wss://relay.primal.net` in this
+  page specifically (not the others) — `relay.damus.io` has now
+  caused real friction four separate times across this project's
+  session history; `relay.primal.net` proved reliable in an isolated
+  repro run back-to-back three times.
+- **The real one**: the status-check query only fetched events
+  tagged `"#p": [ownerPubkey]` — correct for `recovery_confirm`
+  claims (subject = owner) but wrong for `recovery_guardian` claims,
+  which are *authored by* the owner with the *guardian* as subject.
+  Querying only by `#p` silently misses every guardian designation
+  except by coincidence — caught because the first test happened to
+  use the owner as its own second guardian, masking it; a second
+  pass with a genuinely distinct guardian pubkey exposed it for
+  real. Fixed with two parallel queries (`authors`, and `#p`), merged.
+- **A second real bug in the same function**: `guardians.add(e.pubkey)`
+  added the event's *signer* (the owner, for a guardian-designation
+  claim) instead of the `"p"` tag (the actual designated guardian) —
+  the exact mirror of Go's own `SubjectKey` vs `AttesterKey`
+  distinction in `quorum.go`, gotten backwards in the port. Both
+  guardian claims being signed by the same owner meant this collapsed
+  to "1 guardian" via `Set` dedup regardless of how many real
+  guardians existed, masking itself the same way the query bug did.
+  Fixed to read the `"p"` tag.
+
+Verified for real after both fixes: real persona in the real
+extension, two guardian designations (one to a genuinely distinct
+random pubkey, one to a second persona acting as guardian), a real
+confirmation, and a real status check correctly reporting "2
+designated guardians total" and "1/1 needed confirmations" — matching
+the actual 1-of-2 setup, not a coincidence of the test data anymore.
+`go build/vet/test` clean; prior extension regression tests (multi-
+persona, sign, export) re-run with no regressions. Not yet deployed
+to `bh2`.

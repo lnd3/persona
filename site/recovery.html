@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Recovery — persona</title>
+<meta name="description" content="Designate guardians and vouch for a recovery attempt — real NIP-07-signed events, published to real public relays.">
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg: #f7f7f8;
+    --fg: #1a1a1a;
+    --muted: #6b7280;
+    --border: #d9dbe0;
+    --card: #ffffff;
+    --accent: #b45309;
+    --accent-fg: #ffffff;
+    --ok: #1a7f37;
+    --warn: #92400e;
+    --err: #b00020;
+    --code-bg: #f1f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #121214;
+      --fg: #e8e8ea;
+      --muted: #9aa0a6;
+      --border: #2e3035;
+      --card: #1b1c1f;
+      --accent: #e0932e;
+      --accent-fg: #16130a;
+      --ok: #3fb950;
+      --warn: #e3a53c;
+      --err: #ff6b6b;
+      --code-bg: #1e2024;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 48px 20px 80px; }
+  a { color: var(--accent); }
+  h1 { font-size: 1.7rem; margin: 0 0 8px; letter-spacing: -0.02em; }
+  p.lead { color: var(--muted); margin: 0 0 28px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px 22px;
+    margin-bottom: 20px;
+  }
+  .card h2 { font-size: 1.05rem; margin: 0 0 6px; }
+  .card p { color: var(--muted); margin: 0 0 14px; font-size: 0.93rem; }
+  label { display: block; font-size: 0.85rem; font-weight: 600; margin: 12px 0 4px; }
+  label:first-of-type { margin-top: 0; }
+  input, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    color: var(--fg);
+    font-size: 0.92rem;
+    font-family: inherit;
+  }
+  textarea { resize: vertical; min-height: 56px; font-family: monospace; font-size: 0.82rem; }
+  .hint { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+  .btn {
+    display: inline-block;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    font-size: 0.9rem;
+    border: none;
+    cursor: pointer;
+    background: var(--accent);
+    color: var(--accent-fg);
+    margin-top: 14px;
+  }
+  .btn.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  pre {
+    background: var(--code-bg);
+    border-radius: 8px;
+    padding: 12px;
+    font-size: 0.8rem;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+    margin: 12px 0 0;
+  }
+  .status { font-size: 0.88rem; margin-top: 10px; }
+  .status.ok { color: var(--ok); }
+  .status.err { color: var(--err); }
+  .status.warn { color: var(--warn); }
+  .result-item {
+    border-top: 1px solid var(--border);
+    padding: 10px 0;
+    font-size: 0.86rem;
+  }
+  .result-item:first-child { border-top: none; padding-top: 0; }
+  .result-item .meta { color: var(--muted); font-size: 0.78rem; margin-top: 2px; }
+  footer { color: var(--muted); font-size: 0.82rem; margin-top: 40px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <p><a href="/">&larr; back to persona</a></p>
+  <h1>Recovery</h1>
+  <p class="lead">
+    Designating guardians and vouching for a recovery attempt are both
+    just signed events — the same real
+    <code>window.nostr</code>/NIP-07 flow as <a href="/attest">attesting</a>.
+    This page covers that half only. The other half — actually
+    splitting your key into guardian shares and delivering them — has
+    to happen inside a signer extension itself, never a web page, since
+    that needs your raw private key, which NIP-07 never exposes here.
+    See <a href="https://github.com/lnd3/persona/blob/main/plan/actions/A018-recovery-extension-integration.md">A018</a>
+    for why, and what's not built yet.
+  </p>
+
+  <div class="card">
+    <h2>1. Designate guardians</h2>
+    <p>Signs one <code>recovery_guardian</code> claim per guardian, all
+    sharing a fresh group ID — <strong>save that group ID</strong>,
+    guardians and any future recovery attempt both need it.</p>
+    <label for="guardian-pubkeys">Guardian <code>npub</code>s or hex pubkeys (one per line)</label>
+    <textarea id="guardian-pubkeys" placeholder="npub1…&#10;npub1…&#10;npub1…"></textarea>
+    <label for="threshold">Threshold (how many of them must confirm)</label>
+    <input type="text" id="threshold" value="2" />
+    <button class="btn" id="btn-designate">Sign and publish guardian designations</button>
+    <div id="designate-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>2. Confirm as a guardian</h2>
+    <p>If you've been designated as a guardian and the owner has told
+    you (out of band — a recovery attempt isn't itself published by
+    anyone until a guardian confirms it) which group ID and recovery
+    nonce to use, sign your confirmation here.</p>
+    <label for="confirm-owner">Owner's <code>npub</code> or hex pubkey</label>
+    <input type="text" id="confirm-owner" placeholder="npub1… or 64-char hex" />
+    <label for="confirm-group">Group ID</label>
+    <input type="text" id="confirm-group" placeholder="from the owner" />
+    <label for="confirm-nonce">Recovery nonce</label>
+    <div style="display:flex; gap:6px;">
+      <input type="text" id="confirm-nonce" placeholder="from whoever's recovering" />
+      <button class="btn secondary" id="btn-gen-nonce" type="button" style="margin-top:0;">Generate one</button>
+    </div>
+    <div class="hint">Starting a recovery attempt? Generate a nonce
+      here and give it to your guardians yourself — there's no
+      separate "start recovery" event; the nonce is just the thing
+      that ties everyone's confirmations to the same attempt.</div>
+    <button class="btn" id="btn-confirm">Sign and publish confirmation</button>
+    <div id="confirm-result"></div>
+  </div>
+
+  <div class="card">
+    <h2>3. Check recovery status</h2>
+    <p>Looks up the real guardian set and real confirmations for one
+    owner/group/nonce from real relays — the same check
+    <code>internal/recovery.ThresholdMet</code> does in Go, ported
+    directly, not re-derived.</p>
+    <label for="check-owner">Owner's <code>npub</code> or hex pubkey</label>
+    <input type="text" id="check-owner" placeholder="npub1… or 64-char hex" />
+    <label for="check-group">Group ID</label>
+    <input type="text" id="check-group" />
+    <label for="check-nonce">Recovery nonce</label>
+    <input type="text" id="check-nonce" />
+    <button class="btn" id="btn-check">Check status</button>
+    <div id="check-result"></div>
+  </div>
+
+  <footer>
+    No signer loaded? <a href="/try-signer">check you have one first</a>.
+    This page never sees your private key — only
+    <code>window.nostr</code> does, inside your own extension.
+  </footer>
+</div>
+
+<script type="module">
+  import { SimplePool } from "https://esm.sh/nostr-tools@2.25.2/pool";
+  import { nip19 } from "https://esm.sh/nostr-tools@2.25.2";
+
+  const RELAYS = ["wss://nos.lol", "wss://relay.primal.net"];
+  const ATTESTATION_KIND = 3300;
+  const GUARDIAN_CLAIM_TYPE = "net.persona.core.recovery_guardian";
+  const CONFIRM_CLAIM_TYPE = "net.persona.core.recovery_confirm";
+  // Ported directly from internal/recovery/claims.go's own regexes.
+  const GUARDIAN_VALUE_RE = /^([1-9][0-9]*)-of-([1-9][0-9]*):([0-9a-f]+)$/;
+  const CONFIRM_VALUE_RE = /^([0-9a-f]+):([0-9a-f]+)$/;
+
+  const pool = new SimplePool();
+
+  function setStatus(el, html, cls) {
+    el.innerHTML = `<p class="status ${cls}">${html}</p>`;
+  }
+
+  function resolvePubkey(input) {
+    const trimmed = input.trim();
+    if (trimmed.startsWith("npub1")) {
+      const decoded = nip19.decode(trimmed);
+      if (decoded.type !== "npub") throw new Error("not a valid npub");
+      return decoded.data;
+    }
+    if (/^[0-9a-f]{64}$/i.test(trimmed)) return trimmed.toLowerCase();
+    throw new Error("expected an npub1… or a 64-char hex pubkey");
+  }
+
+  function randomHex(bytes) {
+    const arr = crypto.getRandomValues(new Uint8Array(bytes));
+    return Array.from(arr, (b) => b.toString(16).padStart(2, "0")).join("");
+  }
+
+  async function signAndPublish(tags, content, resultBox, label) {
+    if (!window.nostr) throw new Error("No NIP-07 signer found. Load the persona extension (or another) first.");
+    const template = { kind: ATTESTATION_KIND, created_at: Math.floor(Date.now() / 1000), tags, content };
+    setStatus(resultBox, `Waiting for your signer's approval for ${label}…`, "warn");
+    const signed = await window.nostr.signEvent(template);
+    setStatus(resultBox, `Publishing ${label}…`, "warn");
+    // A fresh pool per publish, not the shared module-level one -- this
+    // page (unlike /attest) can publish multiple times in one session
+    // (one event per guardian), and a shared SimplePool's connection
+    // reuse raced with a relay's own connection teardown when called
+    // back-to-back (confirmed with a minimal repro before landing on
+    // this fix, not guessed).
+    const publishPool = new SimplePool();
+    try {
+      const settled = await Promise.allSettled(publishPool.publish(RELAYS, signed));
+      const okCount = settled.filter((r) => r.status === "fulfilled").length;
+      if (okCount === 0) throw new Error(`Every relay rejected ${label}: ` + settled.map((r) => r.reason).join("; "));
+      return { signed, okCount };
+    } finally {
+      publishPool.close(RELAYS);
+    }
+  }
+
+  // --- 1. Designate guardians ---
+  document.getElementById("btn-designate").addEventListener("click", async () => {
+    const resultBox = document.getElementById("designate-result");
+    resultBox.innerHTML = "";
+    try {
+      const lines = document.getElementById("guardian-pubkeys").value.split("\n").map((l) => l.trim()).filter(Boolean);
+      if (lines.length === 0) throw new Error("add at least one guardian");
+      const threshold = parseInt(document.getElementById("threshold").value.trim(), 10);
+      if (!Number.isInteger(threshold) || threshold < 1 || threshold > lines.length) {
+        throw new Error(`threshold must be a whole number between 1 and ${lines.length}`);
+      }
+      const groupId = randomHex(8);
+      const total = lines.length;
+      const value = `${threshold}-of-${total}:${groupId}`;
+
+      const results = [];
+      for (const [i, line] of lines.entries()) {
+        const guardianPubkey = resolvePubkey(line);
+        const { signed } = await signAndPublish(
+          [["p", guardianPubkey], ["claim_type", GUARDIAN_CLAIM_TYPE], ["claim_value", value]],
+          "recovery guardian designation",
+          resultBox,
+          `guardian ${i + 1}/${total}`,
+        );
+        results.push(signed.id);
+      }
+
+      resultBox.innerHTML = `
+        <p class="status ok">✓ Published ${results.length} guardian designation(s).</p>
+        <p><strong>Group ID (save this): <code>${groupId}</code></strong></p>
+        <pre>${JSON.stringify(results, null, 2)}</pre>
+      `;
+    } catch (err) {
+      setStatus(resultBox, err.message ?? String(err), "err");
+    }
+  });
+
+  // --- 2. Confirm as guardian ---
+  document.getElementById("btn-gen-nonce").addEventListener("click", () => {
+    document.getElementById("confirm-nonce").value = randomHex(8);
+  });
+
+  document.getElementById("btn-confirm").addEventListener("click", async () => {
+    const resultBox = document.getElementById("confirm-result");
+    resultBox.innerHTML = "";
+    try {
+      const ownerPubkey = resolvePubkey(document.getElementById("confirm-owner").value);
+      const groupId = document.getElementById("confirm-group").value.trim();
+      const nonce = document.getElementById("confirm-nonce").value.trim();
+      if (!/^[0-9a-f]+$/i.test(groupId) || !/^[0-9a-f]+$/i.test(nonce)) {
+        throw new Error("group ID and nonce are both hex strings — check for typos");
+      }
+      const { signed } = await signAndPublish(
+        [["p", ownerPubkey], ["claim_type", CONFIRM_CLAIM_TYPE], ["claim_value", `${groupId}:${nonce}`]],
+        "recovery confirmation",
+        resultBox,
+        "your confirmation",
+      );
+      resultBox.innerHTML = `<p class="status ok">✓ Published.</p><pre>${JSON.stringify(signed, null, 2)}</pre>`;
+    } catch (err) {
+      setStatus(resultBox, err.message ?? String(err), "err");
+    }
+  });
+
+  // --- 3. Check status ---
+  document.getElementById("btn-check").addEventListener("click", async () => {
+    const resultBox = document.getElementById("check-result");
+    resultBox.innerHTML = "";
+    try {
+      const ownerPubkey = resolvePubkey(document.getElementById("check-owner").value);
+      const groupId = document.getElementById("check-group").value.trim();
+      const nonce = document.getElementById("check-nonce").value.trim();
+
+      setStatus(resultBox, "Querying real relays…", "warn");
+      // Two different queries, not one: a recovery_guardian claim is
+      // AUTHORED by the owner (subject = the guardian's own pubkey,
+      // never the owner's), while a recovery_confirm claim is
+      // authored BY a guardian with the owner as subject ("p" tag).
+      // Querying only "#p": [ownerPubkey] -- the obvious first guess
+      // -- silently misses every guardian-designation claim except by
+      // coincidence (found this for real while testing against a
+      // genuinely different guardian pubkey, not assumed).
+      const [guardianEvents, confirmEvents] = await Promise.all([
+        pool.querySync(RELAYS, { kinds: [ATTESTATION_KIND], authors: [ownerPubkey] }),
+        pool.querySync(RELAYS, { kinds: [ATTESTATION_KIND], "#p": [ownerPubkey] }),
+      ]);
+      const events = [...guardianEvents, ...confirmEvents];
+
+      // GuardianSet: collect guardian pubkeys + threshold for this group_id.
+      let threshold = 0;
+      const guardians = new Set();
+      for (const e of events) {
+        const claimType = e.tags.find((t) => t[0] === "claim_type")?.[1];
+        const claimValue = e.tags.find((t) => t[0] === "claim_value")?.[1];
+        if (claimType !== GUARDIAN_CLAIM_TYPE) continue;
+        const m = GUARDIAN_VALUE_RE.exec(claimValue ?? "");
+        if (!m || m[3] !== groupId) continue;
+        const [, th] = m;
+        if (threshold === 0) threshold = parseInt(th, 10);
+        // The designated guardian is the "p" tag (the event's
+        // SUBJECT) -- e.pubkey is the SIGNER, the owner, for a
+        // recovery_guardian claim. Matches internal/recovery/quorum.go's
+        // own SubjectKey, not AttesterKey.
+        const guardianPubkey = e.tags.find((t) => t[0] === "p")?.[1];
+        if (guardianPubkey) guardians.add(guardianPubkey);
+      }
+      if (threshold === 0) {
+        setStatus(resultBox, "No recovery_guardian claims found for this owner/group — check the group ID.", "warn");
+        return;
+      }
+
+      // ThresholdMet: count distinct designated guardians confirming this exact nonce.
+      const confirmed = new Set();
+      for (const e of events) {
+        const claimType = e.tags.find((t) => t[0] === "claim_type")?.[1];
+        const claimValue = e.tags.find((t) => t[0] === "claim_value")?.[1];
+        if (claimType !== CONFIRM_CLAIM_TYPE) continue;
+        const m = CONFIRM_VALUE_RE.exec(claimValue ?? "");
+        if (!m || m[1] !== groupId || m[2] !== nonce) continue;
+        if (!guardians.has(e.pubkey)) continue; // confirm from a non-guardian doesn't count
+        confirmed.add(e.pubkey);
+      }
+
+      const met = confirmed.size >= threshold;
+      resultBox.innerHTML = `
+        <p class="status ${met ? "ok" : "warn"}">${met ? "✓" : "…"} ${confirmed.size}/${threshold} needed confirmations (${guardians.size} designated guardians total).</p>
+      `;
+    } catch (err) {
+      setStatus(resultBox, err.message ?? String(err), "err");
+    }
+  });
+</script>
+</body>
+</html>

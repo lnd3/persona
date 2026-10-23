@@ -77,6 +77,10 @@ func main() {
 	// A real attestation publisher (sign via NIP-07, publish/query
 	// real relays) — see plan/actions/A015.
 	servePage("/attest", "attest.html")
+	// Guardian designation + recovery vouching (the half that fits a
+	// page — see plan/actions/A018 for why the actual share
+	// generation/delivery can't).
+	servePage("/recovery", "recovery.html")
 
 	srv := &http.Server{
 		Addr:              addr,

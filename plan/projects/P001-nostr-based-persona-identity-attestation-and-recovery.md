@@ -440,6 +440,15 @@ in [[D001]].
       redundancy decision was warranted), fetched back via the
       page's own lookup, and separately verified with persona's own
       Go `attestation.Verify`. Not yet deployed to `bh2`.
+- [ ] File [[A017]]: identity key revocation (stolen-key gap) — filed
+      and scoped 2026-10-23, found while explaining `A003`'s own
+      recovery mechanism: there's no way anywhere in this project to
+      invalidate a key, meaning guardian recovery today does nothing
+      against theft specifically (only pure loss). Real design fork
+      named (reconstruct-the-same-key vs. revoke-and-migrate-to-a-new
+      one), plus the easy-to-miss consequence that `A002`'s own trust
+      computation would need to honor a revocation for this to
+      actually matter, not just adding a claim type. Nothing built.
 
 ## Log
 

@@ -343,6 +343,15 @@
       this for real custody should weigh that explicitly, not take
       "recoverable" to mean "unlosable."
     </div>
+    <p style="margin-top:16px;">
+      <a href="/recovery">Try guardian designation and vouching live</a> —
+      real <code>recovery_guardian</code>/<code>recovery_confirm</code>
+      events, signed with any NIP-07 signer and published to real
+      relays. The other half — actually splitting a key into guardian
+      shares and delivering them — can't be a web page (it needs the
+      raw key, which signers never expose to one) and isn't built yet;
+      see the status table below.
+    </p>
   </div>
 </section>
 
@@ -496,7 +505,7 @@
       <tr><th>Layer</th><th>Status</th></tr>
       <tr><td>Identity &amp; attestation events</td><td><span class="dot dot-done"></span>Done, tested, live relay round trips</td></tr>
       <tr><td>Relative trust computation</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
-      <tr><td>Recovery (guardian attestation + SSKR)</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
+      <tr><td>Recovery (guardian attestation + SSKR)</td><td><span class="dot dot-done"></span>Done, tested; guardian designation and vouching usable live today — <a href="/recovery">try it</a>. Actual key-splitting/share delivery is implemented but not yet exposed in the browser extension (needs the raw key, can't be a web page)</td></tr>
       <tr><td>Payment integration (L402 receipt gateway)</td><td><span class="dot dot-done"></span>Done, tested; proven end-to-end against a real Aperture instance over a real Lightning channel</td></tr>
       <tr><td>Bonding/slashing protocol layer</td><td><span class="dot dot-done"></span>Done, tested</td></tr>
       <tr><td>Bitcoin escrow scripts &amp; settlement</td><td><span class="dot dot-done"></span>Implemented, tested against a real node</td></tr>
